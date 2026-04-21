@@ -10,13 +10,15 @@ app.use(cors());
 // Proxy verification requests to Verification Service
 app.use('/api/verification', createProxyMiddleware({ 
     target: process.env.VERIFICATION_SERVICE_URL || 'http://localhost:8001', 
-    changeOrigin: true 
+    changeOrigin: true,
+    pathRewrite: { '^/api/verification': '' }
 }));
 
 // Proxy voting requests to Voting Service
 app.use('/api/voting', createProxyMiddleware({ 
     target: process.env.VOTING_SERVICE_URL || 'http://localhost:8002', 
-    changeOrigin: true 
+    changeOrigin: true,
+    pathRewrite: { '^/api/voting': '' }
 }));
 
 app.listen(port, () => {
