@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: dvt-api-gateway
+    env: node
+    rootDir: services/api-gateway
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: VERIFICATION_SERVICE_URL
+        sync: false
+      - key: VOTING_SERVICE_URL
+        sync: false
+
+  - type: web
+    name: dvt-voter-auth-service
+    env: node
+    rootDir: services/voter-auth-service
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+
+  - type: web
+    name: dvt-election-data-service
+    env: node
+    rootDir: services/election-data-service
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: AUTH_SERVICE_URL
+        sync: false
