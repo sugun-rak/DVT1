@@ -2,6 +2,7 @@ services:
   - type: web
     name: dvt-api-gateway
     env: node
+    plan: free
     rootDir: services/api-gateway
     buildCommand: npm install
     startCommand: node index.js
@@ -14,6 +15,7 @@ services:
   - type: web
     name: dvt-voter-auth-service
     env: node
+    plan: free
     rootDir: services/voter-auth-service
     buildCommand: npm install
     startCommand: node index.js
@@ -26,6 +28,7 @@ services:
   - type: web
     name: dvt-election-data-service
     env: node
+    plan: free
     rootDir: services/election-data-service
     buildCommand: npm install
     startCommand: node index.js
