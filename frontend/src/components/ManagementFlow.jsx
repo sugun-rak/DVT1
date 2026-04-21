@@ -154,53 +154,39 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
 
     setOfficerLoading(true);
     
+    const sendAction = async (url, body) => {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+           const err = await res.json().catch(()=>({error: 'Unknown API error'}));
+           setOfficerError(err.error || `Server responded with ${res.status}`);
+        }
+      } catch(e) {
+        setOfficerError(e.message || "Network request failed");
+      }
+    };
+
     if (action === 'stop') {
-        try {
-            await fetch(`${API_URL}/verification/officer/toggle`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ constituency_id, is_active: false })
-            });
-        } catch(e) {}
+        await sendAction(`${API_URL}/verification/officer/toggle`, { constituency_id, is_active: false });
     } else if (action === 'start' || action === 'resume') {
-        try {
-            await fetch(`${API_URL}/verification/officer/toggle`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ constituency_id, is_active: true })
-            });
-        } catch(e) {}
+        await sendAction(`${API_URL}/verification/officer/toggle`, { constituency_id, is_active: true });
     } else if (action === 'wipe') {
         if (wipePin.length !== 4) {
             setOfficerError("Please enter your 4-digit PIN.");
             setOfficerLoading(false);
             return;
         }
-        try {
-            await fetch(`${API_URL}/voting/reset-constituency`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ constituencyId: constituency_id })
-            });
-        } catch(e) {}
+        await sendAction(`${API_URL}/voting/reset-constituency`, { constituencyId: constituency_id });
         setWipeConfirmation(false);
         setWipePin('');
     } else if (action === 'restore' && cycleId) {
-        try {
-            await fetch(`${API_URL}/voting/restore-session`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ constituencyId: constituency_id, cycleId })
-            });
-        } catch(e) {}
+        await sendAction(`${API_URL}/voting/restore-session`, { constituencyId: constituency_id, cycleId });
     } else if (action === 'enable_ballot') {
-        try {
-            await fetch(`${API_URL}/verification/officer/enable-ballot`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ constituency_id })
-            });
-        } catch(e) {}
+        await sendAction(`${API_URL}/verification/officer/enable-ballot`, { constituency_id });
     }
 
     await loadStats();
