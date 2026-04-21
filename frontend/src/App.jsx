@@ -101,6 +101,15 @@ function App() {
           />
         )}
       </main>
+      
+      {/* Footer */}
+      <footer style={{
+        padding: '1rem', textAlign: 'center', background: 'rgba(0,0,0,0.8)', borderTop: '1px solid rgba(255,255,255,0.05)',
+        color: 'var(--text-secondary)', fontSize: '0.9rem', zIndex: 10
+      }}>
+        <p style={{ margin: 0 }}>&copy; {new Date().getFullYear()} DVT Digital Voting Technology. All rights reserved.</p>
+        <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', opacity: 0.6 }}>Secure. Transparent. Verifiable.</p>
+      </footer>
     </div>
   );
 }

@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { API_URL } from '../config';
+import heroBg from '../assets/hero-bg.png';
+import logo from '../assets/logo.png';
 
 const CAROUSEL_SLIDES = [
-  { title: "Digital India", text: "Empowering every citizen with secure, transparent voting." },
-  { title: "Your Vote Matters", text: "Participate in shaping the future of our democracy." },
-  { title: "Fast & Secure", text: "State-of-the-art encryption ensures your vote remains confidential." }
+  { title: "Digital Democracy", text: "Empowering every citizen with secure, transparent, and instantly verifiable voting technology." },
+  { title: "Your Voice, Secured", text: "State-of-the-art cryptographic encryption ensures your vote remains strictly confidential." },
+  { title: "The Future of Elections", text: "Experience the next generation of civic participation with our seamless digital kiosks." }
 ];
 
 export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, initialView = 'select', initialRole = '', initialUser = '' }) {
   const { t } = useTranslation();
-  const [view, setView] = useState(initialView); // select, role_select, login
+  const [view, setView] = useState(initialView);
 
-  const [selectedRole, setSelectedRole] = useState(initialRole); // 'superadmin', 'admin', 'officer'
+  const [selectedRole, setSelectedRole] = useState(initialRole);
   const [pinUser, setPinUser] = useState(initialUser);
   const [pinValue, setPinValue] = useState('');
   const [constituencies, setConstituencies] = useState([]);
@@ -19,8 +22,6 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
-
-  const API_URL = 'http://localhost:8000/api';
 
   useEffect(() => {
     setView(initialView);
@@ -32,7 +33,7 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
     if (view === 'select') {
       const interval = setInterval(() => {
         setCurrentSlide((prev) => (prev + 1) % CAROUSEL_SLIDES.length);
-      }, 7000);
+      }, 5000);
       return () => clearInterval(interval);
     } else if (view === 'role_select') {
       fetch(`${API_URL}/voting/constituencies`)
@@ -128,28 +129,49 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
 
   if (view === 'select') {
     return (
-      <div className="animate-fade-in" style={{ width: '100%', maxWidth: '600px', margin: '0 auto' }}>
-        <div className="carousel-container">
-          {CAROUSEL_SLIDES.map((slide, idx) => (
-            <div key={idx} className={`carousel-slide ${idx === currentSlide ? 'active' : ''}`}>
-              <h2 className="carousel-title">{slide.title}</h2>
-              <p className="carousel-text">{slide.text}</p>
-            </div>
-          ))}
+      <div className="animate-fade-in" style={{ width: '100vw', marginLeft: 'calc(-50vw + 50%)', minHeight: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+        {/* Stunning Hero Background */}
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.6, zIndex: -1 }}></div>
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(to bottom, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 1))', zIndex: -1 }}></div>
+
+        {/* Premium Logo and Title */}
+        <div style={{ textAlign: 'center', marginBottom: '3rem', zIndex: 1, padding: '0 2rem' }}>
+          <img src={logo} alt="DVT Logo" style={{ height: '120px', marginBottom: '1.5rem', filter: 'drop-shadow(0 0 20px rgba(56, 189, 248, 0.5))', borderRadius: '20px' }} />
+          <h1 style={{ fontSize: '4rem', fontWeight: '800', background: 'linear-gradient(90deg, #38bdf8, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, letterSpacing: '-1px' }}>
+            {t('app_title', 'Digital Voting System')}
+          </h1>
+          <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', marginTop: '1rem', maxWidth: '600px', margin: '1rem auto 0' }}>
+            The next generation of secure, verifiable, and transparent democratic technology.
+          </p>
         </div>
 
-        <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🗳️</div>
-          <h2 style={{ marginBottom: '2rem', fontSize: '2rem' }}>{t('app_title', 'Digital Voting System')}</h2>
-          <div className="action-buttons" style={{ flexDirection: 'column' }}>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-              <button className="btn btn-secondary" onClick={() => { setView('role_select'); setError(null); }} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                📊 Management Portal
-              </button>
-              <button className="btn btn-primary" onClick={onEnterPublicVoting} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                🗳️ Public Voting Booth
-              </button>
+        {/* Enhanced Glassmorphism Carousel */}
+        <div className="glass-panel" style={{ width: '90%', maxWidth: '900px', padding: '0', display: 'flex', flexWrap: 'wrap', overflow: 'hidden', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', zIndex: 1, marginBottom: '3rem' }}>
+          <div style={{ flex: '1', minWidth: '300px', position: 'relative', padding: '3rem', background: 'rgba(0,0,0,0.4)', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="carousel-container" style={{ height: '120px', display: 'flex', alignItems: 'center', marginBottom: '2rem' }}>
+              {CAROUSEL_SLIDES.map((slide, idx) => (
+                <div key={idx} className={`carousel-slide ${idx === currentSlide ? 'active' : ''}`} style={{ transition: 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)', position: 'absolute', width: '100%' }}>
+                  <h2 style={{ fontSize: '2rem', color: '#fff', marginBottom: '0.8rem', fontWeight: 'bold' }}>{slide.title}</h2>
+                  <p style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.8)', lineHeight: '1.6' }}>{slide.text}</p>
+                </div>
+              ))}
             </div>
+            {/* Carousel Indicators */}
+            <div style={{ position: 'absolute', bottom: '2rem', left: '3rem', display: 'flex', gap: '8px' }}>
+              {CAROUSEL_SLIDES.map((_, idx) => (
+                <div key={idx} style={{ height: '4px', width: idx === currentSlide ? '32px' : '16px', background: idx === currentSlide ? '#38bdf8' : 'rgba(255,255,255,0.2)', borderRadius: '2px', transition: 'all 0.4s ease' }} />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ flex: '0 0 350px', padding: '3rem 2.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'rgba(255,255,255,0.03)' }}>
+            <h3 style={{ fontSize: '1.2rem', color: '#fff', marginBottom: '2rem', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8 }}>Select Portal</h3>
+            <button className="btn btn-primary" onClick={onEnterPublicVoting} style={{ padding: '1.2rem', fontSize: '1.1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', background: 'linear-gradient(135deg, #0284c7, #3b82f6)', border: 'none', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)', borderRadius: '12px', transition: 'transform 0.2s, box-shadow 0.2s' }}>
+              <span style={{ fontSize: '1.4rem' }}>🗳️</span> Public Voting Booth
+            </button>
+            <button className="btn btn-secondary" onClick={() => { setView('role_select'); setError(null); }} style={{ padding: '1.2rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', transition: 'transform 0.2s, background 0.2s' }}>
+              <span style={{ fontSize: '1.4rem' }}>📊</span> Management Portal
+            </button>
           </div>
         </div>
       </div>
