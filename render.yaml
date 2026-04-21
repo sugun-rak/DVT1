@@ -8,9 +8,15 @@ services:
     startCommand: node index.js
     envVars:
       - key: VERIFICATION_SERVICE_URL
-        sync: false
+        fromService:
+          type: web
+          name: dvt-voter-auth-service
+          envVarKey: RENDER_EXTERNAL_URL
       - key: VOTING_SERVICE_URL
-        sync: false
+        fromService:
+          type: web
+          name: dvt-election-data-service
+          envVarKey: RENDER_EXTERNAL_URL
 
   - type: web
     name: dvt-voter-auth-service
@@ -36,4 +42,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: AUTH_SERVICE_URL
-        sync: false
+        fromService:
+          type: web
+          name: dvt-voter-auth-service
+          envVarKey: RENDER_EXTERNAL_URL
