@@ -165,12 +165,12 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
           </div>
 
           <div style={{ flex: '0 0 350px', padding: '3rem 2.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'rgba(255,255,255,0.03)' }}>
-            <h3 style={{ fontSize: '1.2rem', color: '#fff', marginBottom: '2rem', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8 }}>Select Portal</h3>
+            <h3 style={{ fontSize: '1.2rem', color: '#fff', marginBottom: '2rem', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8 }}>{t('select_portal', 'Select Portal')}</h3>
             <button className="btn btn-primary" onClick={onEnterPublicVoting} style={{ padding: '1.2rem', fontSize: '1.1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', background: 'linear-gradient(135deg, #0284c7, #3b82f6)', border: 'none', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)', borderRadius: '12px', transition: 'transform 0.2s, box-shadow 0.2s' }}>
-              <span style={{ fontSize: '1.4rem' }}>🗳️</span> Public Voting Booth
+              <span style={{ fontSize: '1.4rem' }}>🗳️</span> {t('public_voting_booth', 'Public Voting Booth')}
             </button>
             <button className="btn btn-secondary" onClick={() => { setView('role_select'); setError(null); }} style={{ padding: '1.2rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', transition: 'transform 0.2s, background 0.2s' }}>
-              <span style={{ fontSize: '1.4rem' }}>📊</span> Management Portal
+              <span style={{ fontSize: '1.4rem' }}>📊</span> {t('management_portal', 'Management Portal')}
             </button>
           </div>
         </div>
@@ -182,23 +182,23 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
       return (
           <div className="glass-panel animate-fade-in" style={{ padding: '2rem', maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
               <button className="btn-secondary" onClick={() => setView('select')} style={{ padding: '0.2rem 0.5rem', marginBottom: '1rem', float: 'left' }}>←</button>
-              <h2 style={{ marginBottom: '1.5rem', clear: 'both' }}>Select Management Role</h2>
+              <h2 style={{ marginBottom: '1.5rem', clear: 'both' }}>{t('select_management_role', 'Select Management Role')}</h2>
               
               <div className="input-group">
-                  <label>Role</label>
+                  <label>{t('role', 'Role')}</label>
                   <select className="input-field" value={selectedRole} onChange={e => { setSelectedRole(e.target.value); setPinUser(''); setError(null); }}>
-                      <option value="">-- Select Role --</option>
-                      <option value="officer">Polling Officer</option>
-                      <option value="admin">General Admin</option>
-                      <option value="superadmin">Super Admin</option>
+                      <option value="">-- {t('role', 'Role')} --</option>
+                      <option value="officer">{t('polling_officer', 'Polling Officer')}</option>
+                      <option value="admin">{t('general_admin', 'General Admin')}</option>
+                      <option value="superadmin">{t('super_admin', 'Super Admin')}</option>
                   </select>
               </div>
 
               {selectedRole === 'officer' && (
                   <div className="input-group">
-                      <label>Assigned Area (Constituency)</label>
+                      <label>{t('assigned_area', 'Assigned Area (Constituency)')}</label>
                       <select className="input-field" value={pinUser} onChange={e => setPinUser(e.target.value)}>
-                          <option value="">-- Choose Constituency --</option>
+                          <option value="">{t('choose_constituency', '-- Choose Constituency --')}</option>
                           {constituencies.map(c => (
                               <option key={c.id} value={`officer_${c.id}`}>{c.name}</option>
                           ))}
@@ -209,7 +209,7 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
               {error && <p style={{ color: 'var(--error-color)', marginBottom: '1rem', fontSize: '0.9rem' }}>{error}</p>}
 
               <button className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} onClick={proceedToLogin}>
-                  Proceed to Login
+                  {t('proceed_login', 'Proceed to Login')}
               </button>
           </div>
       );
@@ -219,10 +219,10 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
     return (
       <div className="glass-panel animate-fade-in" style={{ padding: '2rem', maxWidth: '350px', margin: '0 auto', textAlign: 'center' }}>
         <button className="btn-secondary" onClick={() => setView('role_select')} style={{ padding: '0.2rem 0.5rem', marginBottom: '1rem', float: 'left' }}>←</button>
-        <h2 style={{ marginBottom: '1.5rem', clear: 'both' }}>{selectedRole === 'officer' ? 'Officer Setup' : 'Admin Login'}</h2>
+        <h2 style={{ marginBottom: '1.5rem', clear: 'both' }}>{selectedRole === 'officer' ? t('officer_setup', 'Officer Setup') : t('admin_login', 'Admin Login')}</h2>
         
         <div className="input-group">
-            <label>{selectedRole === 'officer' ? 'Assigned Area ID' : 'Username'}</label>
+            <label>{selectedRole === 'officer' ? t('assigned_area_id', 'Assigned Area ID') : t('username', 'Username')}</label>
             <input type="text" className="input-field" value={pinUser} disabled />
         </div>
 

@@ -179,7 +179,7 @@ export default function VoterFlow({ onExit }) {
               )}
             </div>
           ))}
-          {parties.length === 0 && <p style={{ textAlign: 'center', gridColumn: '1 / -1' }}>No candidates available for your constituency.</p>}
+          {parties.length === 0 && <p style={{ textAlign: 'center', gridColumn: '1 / -1' }}>{t('no_candidates', 'No candidates available for your constituency.')}</p>}
         </div>
       </div>
     );
@@ -204,7 +204,7 @@ export default function VoterFlow({ onExit }) {
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.2rem', marginBottom: '0.5rem' }}>{i18n.language === 'hi' ? selectedParty.name_hi : selectedParty.name}</p>
           
           <div style={{ padding: '0.5rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '4px', display: 'inline-block' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Constituency: </span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('constituency_label', 'Constituency: ')}</span>
             <span style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>{session.voterDetails.constituency_id.replace(/_/g, ' ').toUpperCase()}</span>
           </div>
         </div>

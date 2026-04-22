@@ -248,20 +248,20 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
       </div>
 
       <div className="tabs-container">
-        {role === 'superadmin' && <div className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>Live Results</div>}
+        {role === 'superadmin' && <div className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>{t('live_results', 'Live Results')}</div>}
         
         {role === 'admin' && (
             <>
-                <div className={`tab ${activeTab === 'health' ? 'active' : ''}`} onClick={() => setActiveTab('health')}>Machine Health</div>
-                <div className={`tab ${activeTab === 'regions' ? 'active' : ''}`} onClick={() => setActiveTab('regions')}>States & Constituencies</div>
-                <div className={`tab ${activeTab === 'parties' ? 'active' : ''}`} onClick={() => setActiveTab('parties')}>Parties & Candidates</div>
+                <div className={`tab ${activeTab === 'health' ? 'active' : ''}`} onClick={() => setActiveTab('health')}>{t('machine_health', 'Machine Health')}</div>
+                <div className={`tab ${activeTab === 'regions' ? 'active' : ''}`} onClick={() => setActiveTab('regions')}>{t('states_constituencies', 'States & Constituencies')}</div>
+                <div className={`tab ${activeTab === 'parties' ? 'active' : ''}`} onClick={() => setActiveTab('parties')}>{t('parties_candidates', 'Parties & Candidates')}</div>
             </>
         )}
 
         {role === 'officer' && (
             <>
-                <div className={`tab ${activeTab === 'session' ? 'active' : ''}`} onClick={() => setActiveTab('session')}>Control Panel</div>
-                <div className={`tab ${activeTab === 'verification' ? 'active' : ''}`} onClick={() => setActiveTab('verification')}>Verify Voters</div>
+                <div className={`tab ${activeTab === 'session' ? 'active' : ''}`} onClick={() => setActiveTab('session')}>{t('control_panel', 'Control Panel')}</div>
+                <div className={`tab ${activeTab === 'verification' ? 'active' : ''}`} onClick={() => setActiveTab('verification')}>{t('verify_voters', 'Verify Voters')}</div>
             </>
         )}
       </div>
@@ -271,38 +271,38 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
           {/* Top Summary Bento Box */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
             <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <h3 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '1rem' }}>Total Votes Cast</h3>
+              <h3 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '1rem' }}>{t('total_votes_cast', 'Total Votes Cast')}</h3>
               <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>{stats.total_votes}</div>
             </div>
             
             <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start' }}>
-              <h3 style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '1rem' }}>Quick Actions</h3>
+              <h3 style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '1rem' }}>{t('quick_actions', 'Quick Actions')}</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <button className="btn btn-primary" onClick={() => handleExport('csv')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>📊</span> Export CSV</button>
-                <button className="btn btn-secondary" onClick={() => handleExport('json')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>{'{ }'}</span> Export JSON</button>
+                <button className="btn btn-primary" onClick={() => handleExport('csv')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>📊</span> {t('export_csv', 'Export CSV')}</button>
+                <button className="btn btn-secondary" onClick={() => handleExport('json')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>{'{ }'}</span> {t('export_json', 'Export JSON')}</button>
               </div>
             </div>
           </div>
 
           <div style={{ marginBottom: '1rem' }}>
-              <label style={{ marginRight: '1rem' }}>Filter Area:</label>
+              <label style={{ marginRight: '1rem' }}>{t('filter_area', 'Filter Area:')}</label>
               <select className="input-field" style={{ width: 'auto', display: 'inline-block' }} value={selectedConstituency} onChange={(e) => setSelectedConstituency(e.target.value)}>
-                <option value="">Global View</option>
+                <option value="">{t('global_view', 'Global View')}</option>
                 {constituencies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
           </div>
 
           <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
             <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.02)' }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Live Candidate Standings</h3>
+              <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{t('live_candidate_standings', 'Live Candidate Standings')}</h3>
             </div>
             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid var(--glass-border)' }}>
-                  <th style={{ padding: '1rem 1.5rem', width: '80px', textAlign: 'center' }}>Symbol</th>
-                  <th style={{ padding: '1rem 1.5rem' }}>Party & Candidate</th>
-                  <th style={{ padding: '1rem 1.5rem', width: '40%' }}>Vote Share</th>
-                  <th style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>Total Votes</th>
+                  <th style={{ padding: '1rem 1.5rem', width: '80px', textAlign: 'center' }}>{t('symbol', 'Symbol')}</th>
+                  <th style={{ padding: '1rem 1.5rem' }}>{t('party_candidate', 'Party & Candidate')}</th>
+                  <th style={{ padding: '1rem 1.5rem', width: '40%' }}>{t('vote_share', 'Vote Share')}</th>
+                  <th style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>{t('total_votes_col', 'Total Votes')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -338,18 +338,18 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
       {role === 'admin' && activeTab === 'health' && (
         <div className="animate-fade-in">
           <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-             <h3 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '1rem' }}>Total System Votes (All Areas)</h3>
+             <h3 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '1rem' }}>{t('total_system_votes', 'Total System Votes (All Areas)')}</h3>
              <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>{healthData.reduce((acc, c) => acc + c.total_votes, 0)}</div>
           </div>
-          <h3>Constituency Machine Health</h3>
+          <h3>{t('constituency_machine_health', 'Constituency Machine Health')}</h3>
           <div style={{ marginTop: '1rem', background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', maxHeight: '500px', overflowY: 'auto' }}>
             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                  <th style={{ padding: '1rem' }}>Constituency</th>
-                  <th style={{ padding: '1rem' }}>Machine Status</th>
-                  <th style={{ padding: '1rem' }}>Ballot Status</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>Votes Cast</th>
+                  <th style={{ padding: '1rem' }}>{t('constituency', 'Constituency')}</th>
+                  <th style={{ padding: '1rem' }}>{t('machine_status', 'Machine Status')}</th>
+                  <th style={{ padding: '1rem' }}>{t('ballot_status', 'Ballot Status')}</th>
+                  <th style={{ padding: '1rem', textAlign: 'right' }}>{t('votes_cast', 'Votes Cast')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -358,13 +358,13 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
                     <td style={{ padding: '1rem' }}>{c.name} ({c.id})</td>
                     <td style={{ padding: '1rem' }}>
                         <span style={{ color: c.is_active ? 'var(--success-color)' : 'var(--error-color)', fontWeight: 'bold' }}>
-                            {c.is_active ? '● ONLINE' : '○ OFFLINE'}
+                            {c.is_active ? `● ${t('online', 'ONLINE')}` : `○ ${t('offline', 'OFFLINE')}`}
                         </span>
                     </td>
                     <td style={{ padding: '1rem' }}>
                         {c.is_active ? (
                             <span style={{ color: c.ballot_enabled ? 'var(--primary-color)' : 'var(--text-secondary)' }}>
-                                {c.ballot_enabled ? 'ENABLED' : 'LOCKED'}
+                                {c.ballot_enabled ? t('enabled', 'ENABLED') : t('locked', 'LOCKED')}
                             </span>
                         ) : '-'}
                     </td>
@@ -400,23 +400,23 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
         <div className="animate-fade-in">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
             <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
-              <h3>Add Party</h3>
+              <h3>{t('add_party', 'Add Party')}</h3>
               <form onSubmit={handleAddParty} style={{ marginTop: '1rem' }}>
-                <div className="input-group"><input type="text" className="input-field" placeholder="Party ID (e.g. p_new)" value={newParty.id} onChange={e => setNewParty({...newParty, id: e.target.value})} required /></div>
-                <div className="input-group"><input type="text" className="input-field" placeholder="Party Name" value={newParty.name} onChange={e => setNewParty({...newParty, name: e.target.value})} required /></div>
-                <div className="input-group"><input type="text" className="input-field" placeholder="Symbol (Emoji)" value={newParty.symbol} onChange={e => setNewParty({...newParty, symbol: e.target.value})} required /></div>
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Add Party</button>
+                <div className="input-group"><input type="text" className="input-field" placeholder={t('party_id', 'Party ID (e.g. p_new)')} value={newParty.id} onChange={e => setNewParty({...newParty, id: e.target.value})} required /></div>
+                <div className="input-group"><input type="text" className="input-field" placeholder={t('party_name', 'Party Name')} value={newParty.name} onChange={e => setNewParty({...newParty, name: e.target.value})} required /></div>
+                <div className="input-group"><input type="text" className="input-field" placeholder={t('symbol_emoji', 'Symbol (Emoji)')} value={newParty.symbol} onChange={e => setNewParty({...newParty, symbol: e.target.value})} required /></div>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>{t('add_party', 'Add Party')}</button>
               </form>
             </div>
             <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
-              <h3>Add Candidate</h3>
+              <h3>{t('add_candidate', 'Add Candidate')}</h3>
               <form onSubmit={handleAddCandidate} style={{ marginTop: '1rem' }}>
-                <div className="input-group"><input type="text" className="input-field" placeholder="Candidate ID" value={newCandidate.id} onChange={e => setNewCandidate({...newCandidate, id: e.target.value})} required /></div>
-                <div className="input-group"><input type="text" className="input-field" placeholder="Candidate Name" value={newCandidate.name} onChange={e => setNewCandidate({...newCandidate, name: e.target.value})} required /></div>
-                <div className="input-group"><input type="text" className="input-field" placeholder="Photo URL" value={newCandidate.photo} onChange={e => setNewCandidate({...newCandidate, photo: e.target.value})} required /></div>
-                <div className="input-group"><select className="input-field" value={newCandidate.party_id} onChange={e => setNewCandidate({...newCandidate, party_id: e.target.value})} required><option value="">Select Party</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
-                <div className="input-group"><select className="input-field" value={newCandidate.constituency_id} onChange={e => setNewCandidate({...newCandidate, constituency_id: e.target.value})} required><option value="">Select Constituency</option>{constituencies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Add Candidate</button>
+                <div className="input-group"><input type="text" className="input-field" placeholder={t('candidate_id', 'Candidate ID')} value={newCandidate.id} onChange={e => setNewCandidate({...newCandidate, id: e.target.value})} required /></div>
+                <div className="input-group"><input type="text" className="input-field" placeholder={t('candidate_name', 'Candidate Name')} value={newCandidate.name} onChange={e => setNewCandidate({...newCandidate, name: e.target.value})} required /></div>
+                <div className="input-group"><input type="text" className="input-field" placeholder={t('photo_url', 'Photo URL')} value={newCandidate.photo} onChange={e => setNewCandidate({...newCandidate, photo: e.target.value})} required /></div>
+                <div className="input-group"><select className="input-field" value={newCandidate.party_id} onChange={e => setNewCandidate({...newCandidate, party_id: e.target.value})} required><option value="">-- {t('select_party', 'Select Party')} --</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+                <div className="input-group"><select className="input-field" value={newCandidate.constituency_id} onChange={e => setNewCandidate({...newCandidate, constituency_id: e.target.value})} required><option value="">-- {t('choose_constituency', '-- Choose Constituency --')} --</option>{constituencies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>{t('add_candidate', 'Add Candidate')}</button>
               </form>
             </div>
           </div>
@@ -429,11 +429,11 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
               
               <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '2rem' }}>
                   <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', flex: 1 }}>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Machine Status</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: currentStatus === 'ACTIVE' ? 'var(--success-color)' : 'var(--error-color)' }}>{currentStatus}</div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t('machine_status', 'Machine Status')}</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: currentStatus === 'ACTIVE' ? 'var(--success-color)' : 'var(--error-color)' }}>{currentStatus === 'ACTIVE' ? t('online', 'ACTIVE') : currentStatus}</div>
                   </div>
                   <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', flex: 1 }}>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Active Votes</div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t('active_votes', 'Active Votes')}</div>
                     <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{totalVotes}</div>
                   </div>
               </div>
@@ -441,21 +441,21 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
               {currentStatus === 'ACTIVE' && (
                   <div className="glass-panel" style={{ marginBottom: '2rem', border: ballotEnabled ? '2px solid var(--success-color)' : '2px solid rgba(255,255,255,0.1)' }}>
                       <h3 style={{ marginBottom: '1rem', color: ballotEnabled ? 'var(--success-color)' : 'var(--text-primary)' }}>
-                          {ballotEnabled ? '🗳️ Ballot Enabled for Current Voter' : '🔒 Ballot is Locked'}
+                          {ballotEnabled ? `🗳️ ${t('ballot_enabled', 'Ballot Enabled for Current Voter')}` : `🔒 ${t('ballot_locked', 'Ballot is Locked')}`}
                       </h3>
                       {!ballotEnabled ? (
                           <button className="btn btn-primary" style={{ width: '100%', fontSize: '1.2rem', padding: '1.5rem' }} onClick={() => handleOfficerAction('enable_ballot')} disabled={officerLoading}>
-                              ▶ Enable Ballot for Current Voter
+                              ▶ {t('enable_ballot_voter', 'Enable Ballot for Current Voter')}
                           </button>
                       ) : (
-                          <p style={{ color: 'var(--text-secondary)' }}>The Public Voting Booth is unlocked. Waiting for voter to cast their vote...</p>
+                          <p style={{ color: 'var(--text-secondary)' }}>{t('waiting_for_voter', 'The Public Voting Booth is unlocked. Waiting for voter to cast their vote...')}</p>
                       )}
                   </div>
               )}
 
               {wipeConfirmation ? (
                   <div className="glass-panel" style={{ border: '1px solid var(--error-color)' }}>
-                      <h3 style={{ color: 'var(--error-color)', marginBottom: '1rem' }}>⚠️ Confirm Wipe</h3>
+                      <h3 style={{ color: 'var(--error-color)', marginBottom: '1rem' }}>⚠️ {t('confirm_wipe', 'Confirm Wipe')}</h3>
                       <p style={{ marginBottom: '1rem' }}>Enter your 4-digit PIN to safely archive and clear active votes.</p>
                       <input 
                           type="password" pattern="[0-9]*" inputMode="numeric" maxLength="4"
@@ -464,33 +464,33 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
                       />
                       {officerError && <p style={{ color: 'var(--error-color)' }}>{officerError}</p>}
                       <div style={{ display: 'flex', gap: '1rem' }}>
-                          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => handleOfficerAction('cancel_wipe')}>Cancel</button>
-                          <button className="btn btn-primary" style={{ flex: 1, background: 'var(--error-color)' }} onClick={() => handleOfficerAction('wipe')} disabled={wipePin.length !== 4}>Confirm Wipe</button>
+                          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => handleOfficerAction('cancel_wipe')}>{t('cancel', 'Cancel')}</button>
+                          <button className="btn btn-primary" style={{ flex: 1, background: 'var(--error-color)' }} onClick={() => handleOfficerAction('wipe')} disabled={wipePin.length !== 4}>{t('confirm_wipe', 'Confirm Wipe')}</button>
                       </div>
                   </div>
               ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
                       {currentStatus !== 'ACTIVE' ? (
                           <button className="btn btn-primary" onClick={() => handleOfficerAction('start')} disabled={officerLoading}>
-                              ▶ Power On Machine (Start Session)
+                              ▶ {t('power_on_machine', 'Power On Machine (Start Session)')}
                           </button>
                       ) : (
                           <button className="btn btn-secondary" onClick={() => handleOfficerAction('stop')} disabled={officerLoading}>
-                              🛑 Power Off Machine (Stop Session)
+                              🛑 {t('power_off_machine', 'Power Off Machine (Stop Session)')}
                           </button>
                       )}
 
                       {sessionHistory.length > 0 && currentStatus !== 'ACTIVE' && (
                           <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Historical Archives</p>
+                              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{t('historical_archives', 'Historical Archives')}</p>
                               <button className="btn btn-secondary" style={{ width: '100%', marginBottom: '0.5rem', fontSize: '0.9rem' }} onClick={() => handleOfficerAction('restore', sessionHistory[0])} disabled={officerLoading}>
-                                  Load Last Session ({new Date(parseInt(sessionHistory[0].split('_')[1])).toLocaleString()})
+                                  {t('load_last_session', 'Load Last Session')} ({new Date(parseInt(sessionHistory[0].split('_')[1])).toLocaleString()})
                               </button>
                           </div>
                       )}
 
                       <button className="btn btn-secondary" style={{ borderColor: 'var(--error-color)', color: 'var(--error-color)', marginTop: '1rem' }} onClick={() => handleOfficerAction('wipe_prompt')} disabled={officerLoading || currentStatus === 'ACTIVE'}>
-                          🗑️ Archive & Reset Active Votes
+                          🗑️ {t('archive_reset', 'Archive & Reset Active Votes')}
                       </button>
                   </div>
               )}
@@ -500,7 +500,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
       {role === 'officer' && activeTab === 'verification' && (
           <div className="animate-fade-in" style={{ textAlign: 'center', maxWidth: '500px', margin: '0 auto' }}>
               <div className="glass-panel">
-                  <h2 style={{ marginBottom: '1rem' }}>Verify Voter ID</h2>
+                  <h2 style={{ marginBottom: '1rem' }}>{t('verify_voter_id', 'Verify Voter ID')}</h2>
                   <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
                       Verify the voter's physical ID card by scanning it. If valid, generate a unique, one-time Acknowledgment Number for them to use at the Voting Booth.
                   </p>
@@ -526,7 +526,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
                           </div>
                           
                           <button className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.2rem', marginBottom: '1rem' }} onClick={handleGenerateAck} disabled={officerLoading}>
-                              Generate ACK Number
+                              {t('generate_ack', 'Generate ACK Number')}
                           </button>
                       </div>
                   )}
@@ -535,12 +535,12 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
 
                   {generatedAck && (
                       <div className="animate-fade-in" style={{ marginTop: '2rem', padding: '2rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid var(--primary-color)', borderRadius: '8px' }}>
-                          <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Provide this number to the voter:</p>
+                          <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{t('provide_ack_to_voter', 'Provide this number to the voter:')}</p>
                           <div style={{ fontSize: '2.5rem', fontWeight: 'bold', letterSpacing: '4px', color: 'white', marginBottom: '1.5rem' }}>
                               {generatedAck}
                           </div>
                           <button className="btn btn-secondary" onClick={() => { setScannedVoter(null); setGeneratedAck(null); }} style={{ width: '100%' }}>
-                              Scan Next Voter
+                              {t('scan_next_voter', 'Scan Next Voter')}
                           </button>
                       </div>
                   )}
