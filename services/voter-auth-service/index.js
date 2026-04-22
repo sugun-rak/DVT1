@@ -167,7 +167,7 @@ app.get('/officer/status/:constituencyId', async (req, res) => {
     try {
         const result = await pool.query('SELECT is_active, ballot_enabled FROM constituency_status WHERE constituency_id = $1', [req.params.constituencyId]);
         const row = result.rows[0];
-        if (!row) return res.status(500).json({ error: 'Failed to fetch status' });
+        if (!row) return res.json({ is_active: false, ballot_enabled: false });
         res.json({ is_active: !!row.is_active, ballot_enabled: !!row.ballot_enabled });
     } catch (err) { res.status(500).json({ error: 'Database error' }); }
 });
@@ -176,7 +176,12 @@ app.get('/officer/status/:constituencyId', async (req, res) => {
 app.post('/officer/toggle', async (req, res) => {
     try {
         const { constituency_id, is_active } = req.body;
-        await pool.query('UPDATE constituency_status SET is_active = $1, ballot_enabled = false WHERE constituency_id = $2', [is_active, constituency_id]);
+        await pool.query(`
+            INSERT INTO constituency_status (constituency_id, is_active, ballot_enabled) 
+            VALUES ($1, $2, false)
+            ON CONFLICT (constituency_id) 
+            DO UPDATE SET is_active = $2, ballot_enabled = false
+        `, [constituency_id, is_active]);
         res.json({ success: true, is_active });
     } catch (err) { res.status(500).json({ error: 'Failed to update status' }); }
 });
@@ -185,7 +190,12 @@ app.post('/officer/toggle', async (req, res) => {
 app.post('/officer/enable-ballot', async (req, res) => {
     try {
         const { constituency_id } = req.body;
-        await pool.query('UPDATE constituency_status SET ballot_enabled = true WHERE constituency_id = $1', [constituency_id]);
+        await pool.query(`
+            INSERT INTO constituency_status (constituency_id, is_active, ballot_enabled) 
+            VALUES ($1, true, true)
+            ON CONFLICT (constituency_id) 
+            DO UPDATE SET ballot_enabled = true
+        `, [constituency_id]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Failed to enable ballot' }); }
 });

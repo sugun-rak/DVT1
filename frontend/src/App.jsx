@@ -137,7 +137,7 @@ function App() {
   }
 
   return (
-    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
       <header style={{ 
         display: 'flex', justifyContent: 'flex-end', alignItems: 'center', 
         padding: '1rem 2rem', gap: '10px', background: 'rgba(0,0,0,0.5)', borderBottom: '1px solid rgba(255,255,255,0.1)'

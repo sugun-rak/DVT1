@@ -150,7 +150,7 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
           <div style={{ flex: '1 1 300px', position: 'relative', padding: '2rem', background: 'rgba(0,0,0,0.4)', borderRight: '1px solid rgba(255,255,255,0.05)', minHeight: '280px' }}>
             <div className="carousel-container" style={{ height: '100%', display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
               {CAROUSEL_SLIDES.map((slide, idx) => (
-                <div key={idx} className={`carousel-slide ${idx === currentSlide ? 'active' : ''}`} style={{ transition: 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)', position: 'absolute', width: '90%' }}>
+                <div key={idx} className={`carousel-slide ${idx === currentSlide ? 'active' : ''}`} style={{ transition: 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)', position: 'absolute', width: '90%', opacity: idx === currentSlide ? 1 : 0 }}>
                   <h2 style={{ fontSize: 'clamp(1.5rem, 5vw, 2rem)', color: '#fff', marginBottom: '0.8rem', fontWeight: 'bold' }}>{slide.title}</h2>
                   <p style={{ fontSize: 'clamp(0.9rem, 3vw, 1.1rem)', color: 'rgba(255,255,255,0.8)', lineHeight: '1.5' }}>{slide.text}</p>
                 </div>
