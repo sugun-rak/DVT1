@@ -434,9 +434,9 @@ body {
     padding: 1rem;
   }
 }
-@ k e y f r a m e s   b l i n k   {   5 0 %   {   o p a c i t y :   0 ;   }   } 
- 
- 
+@keyframes blink { 50% { opacity: 0; } } 
+ 
+ 
 /* Hide scrollbar for Chrome, Safari and Opera */
 *::-webkit-scrollbar {
   display: none;
