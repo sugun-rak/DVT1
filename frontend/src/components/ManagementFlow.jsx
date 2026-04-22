@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-
-const API_URL = 'http://localhost:8000/api';
+import { API_URL } from '../config';
 
 export default function ManagementFlow({ managementSession, onLogout, onBack }) {
   const { t } = useTranslation();
