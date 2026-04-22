@@ -129,13 +129,13 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
 
   if (view === 'select') {
     return (
-      <div className="animate-fade-in" style={{ width: '100%', height: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflowY: 'auto', padding: '2rem 1rem' }}>
+      <div className="animate-fade-in" style={{ width: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', position: 'relative', padding: '2rem 1rem' }}>
         {/* Stunning Hero Background */}
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.6, zIndex: -1 }}></div>
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'linear-gradient(to bottom, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 1))', zIndex: -1 }}></div>
 
         {/* Premium Logo and Title */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem', zIndex: 1, padding: '0' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem', zIndex: 1, padding: '0', marginTop: 'auto' }}>
           <img src={logo} alt="DVT Logo" style={{ height: '80px', marginBottom: '1rem', filter: 'drop-shadow(0 0 20px rgba(56, 189, 248, 0.5))', borderRadius: '15px' }} />
           <h1 style={{ fontSize: 'clamp(2.5rem, 8vw, 4rem)', fontWeight: '800', background: 'linear-gradient(90deg, #38bdf8, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, letterSpacing: '-1px' }}>
             {t('app_title', 'Digital Voting System')}
@@ -146,8 +146,8 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
         </div>
 
         {/* Enhanced Glassmorphism Carousel */}
-        <div className="glass-panel" style={{ width: '100%', maxWidth: '900px', padding: '0', display: 'flex', flexWrap: 'wrap', overflow: 'hidden', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', zIndex: 1, marginBottom: '2rem' }}>
-          <div style={{ flex: '1 1 300px', position: 'relative', padding: '2rem', background: 'rgba(0,0,0,0.4)', borderRight: '1px solid rgba(255,255,255,0.05)', minHeight: '250px' }}>
+        <div className="glass-panel" style={{ width: '100%', maxWidth: '900px', padding: '0', display: 'flex', flexWrap: 'wrap', overflow: 'hidden', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', zIndex: 1, marginBottom: 'auto' }}>
+          <div style={{ flex: '1 1 300px', position: 'relative', padding: '2rem', background: 'rgba(0,0,0,0.4)', borderRight: '1px solid rgba(255,255,255,0.05)', minHeight: '280px' }}>
             <div className="carousel-container" style={{ height: '100%', display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
               {CAROUSEL_SLIDES.map((slide, idx) => (
                 <div key={idx} className={`carousel-slide ${idx === currentSlide ? 'active' : ''}`} style={{ transition: 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)', position: 'absolute', width: '90%' }}>
