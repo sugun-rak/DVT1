@@ -37,6 +37,11 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   const [isScanning, setIsScanning] = useState(false);
   const [scannedVoter, setScannedVoter] = useState(null);
 
+  const authHeaders = {
+    'Authorization': `Bearer ${localStorage.getItem('dvt_token')}`,
+    'Content-Type': 'application/json'
+  };
+
   const loadStats = async () => {
     if (role === 'superadmin') {
       try {
@@ -157,7 +162,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
       try {
         const res = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
           body: JSON.stringify(body)
         });
         if (!res.ok) {
