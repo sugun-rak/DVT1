@@ -14,8 +14,11 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-async function initDB() {
-    try {
+async function initDB(retries = 10) {
+    while (retries > 0) {
+        try {
+            await pool.query('SELECT 1'); // Test connection
+
         await pool.query(`
             CREATE TABLE IF NOT EXISTS states (
                 id TEXT PRIMARY KEY,
@@ -144,9 +147,17 @@ async function initDB() {
                 client.release();
             }
         }
+        break; // Successfully initialized, break out of loop
     } catch (e) {
-        console.error("DB Init Error:", e);
+        console.error(`DB Init Error, retrying in 5s... (${retries} retries left):`, e.message);
+        retries -= 1;
+        if (retries === 0) {
+            console.error("FATAL: Could not connect to DB.");
+            process.exit(1);
+        }
+        await new Promise(res => setTimeout(res, 5000));
     }
+}
 }
 initDB();
 
