@@ -179,33 +179,23 @@ app.post('/guest/register', async (req, res) => {
         const superadminPin = generatePin();
         const officerPin = generatePin();
         
-        // Randomly pick a real constituency from the DB for the officer PIN
-        let officerConstituencyId = 's_1_c_1';
-        let officerAreaName = 'Maharashtra Area 1';
-        try {
-            const constRes = await pool.query('SELECT id FROM constituency_status ORDER BY RANDOM() LIMIT 1');
-            if (constRes.rows.length > 0) {
-                officerConstituencyId = constRes.rows[0].id;
-                // Fetch the friendly name from election-data-service if available, else use ID
-                officerAreaName = officerConstituencyId.replace(/_/g, ' ').toUpperCase();
-            }
-        } catch(e) {
-            // Fallback to default if DB query fails
-        }
-        
-        const officerUsername = `officer_${officerConstituencyId}`;
         const expiresAt = Date.now() + 15 * 60 * 1000;
         
+        // Guest PINs: admin/superadmin are username-locked.
+        // Officer PIN is UNIVERSAL — works for any constituency, just like the permanent owner PIN 0000.
         guest_pins.set(adminPin, { role: 'admin', expiresAt, username: 'admin' });
         guest_pins.set(superadminPin, { role: 'superadmin', expiresAt, username: 'superadmin' });
-        guest_pins.set(officerPin, { role: 'officer', expiresAt, username: officerUsername, constituency_id: officerConstituencyId });
+        guest_pins.set(officerPin, { role: 'officer', expiresAt, universal: true });
         
         await sendNotificationEmail('New Guest Beta Tester Registered', 
             `User ${name} (${email}) has registered for a 15-minute Guest Session.\n` +
-            `SuperAdmin Temp PIN: ${superadminPin}\nAdmin Temp PIN: ${adminPin}\nOfficer Temp PIN: ${officerPin} (Area: ${officerConstituencyId})\nExpires at: ${new Date(expiresAt).toISOString()}`
+            `SuperAdmin Temp PIN: ${superadminPin} (username: superadmin)\n` +
+            `Admin Temp PIN: ${adminPin} (username: admin)\n` +
+            `Officer Temp PIN: ${officerPin} (UNIVERSAL — any constituency)\n` +
+            `Expires at: ${new Date(expiresAt).toISOString()}`
         );
         
-        res.json({ success: true, adminPin, superadminPin, officerPin, officerUsername, officerArea: officerAreaName, expiresAt });
+        res.json({ success: true, adminPin, superadminPin, officerPin, expiresAt });
     } catch (err) { res.status(500).json({ error: 'Failed to generate guest pins' }); }
 });
 
@@ -248,11 +238,13 @@ app.post('/officer/login', async (req, res) => {
         const lockoutTime = checkLockout(username);
         if (lockoutTime > 0) return res.status(403).json({ error: `Account locked. Try again in ${lockoutTime} seconds.` });
 
-        // Check guest officer PIN — must match both username and PIN
+        // Check guest officer PIN — UNIVERSAL: works for any constituency the tester selects.
+        // Just like the permanent owner PIN 0000 works for any officer username.
         const guestData = guest_pins.get(pin);
-        if (guestData && guestData.role === 'officer' && guestData.username === username && Date.now() < guestData.expiresAt) {
+        if (guestData && guestData.role === 'officer' && Date.now() < guestData.expiresAt) {
             recordAttempt(username, true);
-            const cId = guestData.constituency_id || username.replace('officer_', '');
+            // Derive constituency from whichever username was selected at login
+            const cId = username.startsWith('officer_') ? username.replace('officer_', '') : 's_1_c_1';
             const token = jwt.sign({ id: 'guest_officer', role: 'officer', constituency_id: cId }, JWT_SECRET, { expiresIn: '15m' });
             return res.json({ token, role: 'officer', constituency_id: cId });
         }
