@@ -38,23 +38,31 @@ function App() {
 
   // Backend Wake-up Sequence
   useEffect(() => {
+    let timeoutId;
     const checkBackend = async () => {
       try {
-        const res = await fetch(`${API_URL}/voting/constituencies`);
-        if (res.ok) {
+        const [votingRes, authRes] = await Promise.allSettled([
+          fetch(`${API_URL}/voting/constituencies`),
+          fetch(`${API_URL}/verification/officer/status/ping`)
+        ]);
+        if (votingRes.status === 'fulfilled' && votingRes.value.ok && 
+            authRes.status === 'fulfilled' && authRes.value.ok) {
           setIsWakingBackend(false);
           return;
         }
       } catch (e) {
         // Backend is likely sleeping and request failed
       }
-      setTimeout(checkBackend, 3000);
+      timeoutId = setTimeout(checkBackend, 8000);
     };
 
-    const tId = setTimeout(() => setWakeTimeout(true), 3000);
+    const tId = setTimeout(() => setWakeTimeout(true), 8000);
     checkBackend();
 
-    return () => clearTimeout(tId);
+    return () => {
+      clearTimeout(tId);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   // Engaging Loading Facts
@@ -180,7 +188,7 @@ function App() {
         padding: '1rem', textAlign: 'center', background: 'rgba(0,0,0,0.8)', borderTop: '1px solid rgba(255,255,255,0.05)',
         color: 'var(--text-secondary)', fontSize: '0.9rem', zIndex: 10
       }}>
-        <p style={{ margin: 0 }}>&copy; {new Date().getFullYear()} DVT Digital Voting Technology. All rights reserved.</p>
+        <p style={{ margin: 0 }}>&copy; {new Date().getFullYear()} SUGUN-RAKSHIT-DVS Digital Voting System. All rights reserved.</p>
         <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', opacity: 0.6 }}>Secure. Transparent. Verifiable.</p>
       </footer>
     </div>

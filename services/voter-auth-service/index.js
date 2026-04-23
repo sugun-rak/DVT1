@@ -5,6 +5,41 @@ const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.SMTP_USER || 'sugun.rakshit@gmail.com',
+        pass: process.env.SMTP_PASS || ''
+    }
+});
+
+async function sendNotificationEmail(subject, text) {
+    try {
+        if (!process.env.SMTP_PASS) {
+            console.log(`\n[MOCK EMAIL] To: sugun.rakshit@gmail.com | Subject: ${subject}\nBody: ${text}\n`);
+            return;
+        }
+        await transporter.sendMail({
+            from: process.env.SMTP_USER || 'sugun.rakshit@gmail.com',
+            to: 'sugun.rakshit@gmail.com',
+            subject: `Detail Notification for the DVS Services: ${subject}`,
+            text: text
+        });
+    } catch (e) {
+        console.error("Email failed to send:", e);
+    }
+}
+
+const guest_pins = new Map();
+setInterval(() => {
+    const now = Date.now();
+    for (const [pin, data] of guest_pins.entries()) {
+        if (now > data.expiresAt) guest_pins.delete(pin);
+    }
+}, 60000);
+
 
 const app = express();
 const port = process.env.PORT || 8001;
@@ -122,12 +157,43 @@ function recordAttempt(username, success) {
     loginAttempts.set(username, record);
 }
 
+// Guest Register
+app.post('/guest/register', async (req, res) => {
+    try {
+        const { email, name } = req.body;
+        if (!email || !name) return res.status(400).json({ error: 'Email and Name required' });
+        
+        const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString();
+        const adminPin = generatePin();
+        const officerPin = generatePin();
+        
+        const expiresAt = Date.now() + 15 * 60 * 1000;
+        
+        guest_pins.set(adminPin, { role: 'admin', expiresAt, username: 'admin' });
+        guest_pins.set(officerPin, { role: 'officer', expiresAt, username: 'officer_s_1_c_1' });
+        
+        await sendNotificationEmail('New Guest Beta Tester Registered', 
+            `User ${name} (${email}) has registered for a 15-minute Guest Session.\n` +
+            `Admin Temp PIN: ${adminPin}\nOfficer Temp PIN: ${officerPin}\nExpires at: ${new Date(expiresAt).toISOString()}`
+        );
+        
+        res.json({ success: true, adminPin, officerPin, expiresAt });
+    } catch (err) { res.status(500).json({ error: 'Failed to generate guest pins' }); }
+});
+
 // Admin Login
 app.post('/admin/login', async (req, res) => {
     try {
         const { username, pin } = req.body;
         const lockoutTime = checkLockout(username);
         if (lockoutTime > 0) return res.status(403).json({ error: `Account locked. Try again in ${lockoutTime} seconds.` });
+
+        const guestData = guest_pins.get(pin);
+        if (guestData && guestData.role === 'admin' && guestData.username === username && Date.now() < guestData.expiresAt) {
+            recordAttempt(username, true);
+            const token = jwt.sign({ id: 'guest_admin', role: 'admin' }, JWT_SECRET, { expiresIn: '15m' });
+            return res.json({ token, role: 'admin' });
+        }
 
         const result = await pool.query('SELECT * FROM admins WHERE username = $1', [username]);
         const admin = result.rows[0];
@@ -137,6 +203,7 @@ app.post('/admin/login', async (req, res) => {
         }
         
         recordAttempt(username, true);
+        await sendNotificationEmail('Owner Admin Login', `The permanent Owner Admin account (${username}) was just used to log in at ${new Date().toISOString()}.`);
         const token = jwt.sign({ id: admin.id, role: 'admin' }, JWT_SECRET, { expiresIn: '8h' });
         res.json({ token, role: 'admin' });
     } catch (err) { res.status(500).json({ error: 'Database error' }); }
@@ -149,6 +216,13 @@ app.post('/officer/login', async (req, res) => {
         const lockoutTime = checkLockout(username);
         if (lockoutTime > 0) return res.status(403).json({ error: `Account locked. Try again in ${lockoutTime} seconds.` });
 
+        const guestData = guest_pins.get(pin);
+        if (guestData && guestData.role === 'officer' && guestData.username === username && Date.now() < guestData.expiresAt) {
+            recordAttempt(username, true);
+            const token = jwt.sign({ id: 'guest_officer', role: 'officer', constituency_id: username.replace('officer_', '') }, JWT_SECRET, { expiresIn: '15m' });
+            return res.json({ token, role: 'officer' });
+        }
+
         const result = await pool.query('SELECT * FROM polling_officers WHERE username = $1', [username]);
         const officer = result.rows[0];
         if (!officer || !bcrypt.compareSync(pin, officer.pin)) {
@@ -157,8 +231,9 @@ app.post('/officer/login', async (req, res) => {
         }
         
         recordAttempt(username, true);
+        await sendNotificationEmail('Owner Officer Login', `The permanent Owner Officer account (${username}) was just used to log in at ${new Date().toISOString()}.`);
         const token = jwt.sign({ id: officer.id, role: 'officer', constituency_id: officer.constituency_id }, JWT_SECRET, { expiresIn: '8h' });
-        res.json({ token, role: 'officer', constituency_id: officer.constituency_id });
+        res.json({ token, role: 'officer' });
     } catch (err) { res.status(500).json({ error: 'Database error' }); }
 });
 

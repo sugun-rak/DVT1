@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config';
 import heroBg from '../assets/hero-bg.png';
 import logo from '../assets/logo.png';
+import GuestRegistration from './GuestRegistration';
 
 const CAROUSEL_SLIDES = [
   { title: "Digital Democracy", text: "Empowering every citizen with secure, transparent, and instantly verifiable voting technology." },
@@ -206,13 +207,22 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
                   </div>
               )}
 
-              {error && <p style={{ color: 'var(--error-color)', marginBottom: '1rem', fontSize: '0.9rem' }}>{error}</p>}
-
-              <button className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} onClick={proceedToLogin}>
-                  {t('proceed_login', 'Proceed to Login')}
-              </button>
+              {error && <p style={{ color: 'var(--error-color)', marginTop: '1rem' }}>{error}</p>}
+              
+              <button className="btn btn-primary" onClick={proceedToLogin} style={{ width: '100%', marginTop: '1.5rem' }}>{t('proceed', 'Proceed')}</button>
+              
+              <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.8rem' }}>Beta Testing Program</p>
+                  <button className="btn btn-secondary" onClick={() => setView('guest_register')} style={{ width: '100%', fontSize: '0.9rem', padding: '0.8rem' }}>
+                    Register for Guest Access
+                  </button>
+              </div>
           </div>
       );
+  }
+
+  if (view === 'guest_register') {
+      return <GuestRegistration onBack={() => setView('role_select')} />;
   }
 
   if (view === 'login') {
