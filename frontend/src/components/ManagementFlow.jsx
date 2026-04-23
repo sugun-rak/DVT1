@@ -38,7 +38,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   const [scannedVoter, setScannedVoter] = useState(null);
 
   const authHeaders = {
-    'Authorization': `Bearer ${localStorage.getItem('dvt_token')}`,
+    'Authorization': `Bearer ${managementSession?.token || ''}`,
     'Content-Type': 'application/json'
   };
 

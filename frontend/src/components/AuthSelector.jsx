@@ -107,15 +107,15 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
       });
       const data = await res.json();
       if (res.ok) {
-        // If they logged in as superadmin, make sure they actually used the superadmin account
-        if (selectedRole === 'superadmin' && pinUser !== 'superadmin') {
-            setError("Invalid super admin credentials.");
-            setPinValue('');
-            setLoading(false);
-            return;
-        }
-        
-        onManagementLogin({ ...data, role: selectedRole, username: pinUser });
+        // Use server-returned role (authoritative) and merge with client username
+        // constituency_id from server JWT is critical for officer actions
+        const serverRole = data.role || selectedRole;
+        onManagementLogin({ 
+          ...data, 
+          role: serverRole, 
+          username: pinUser,
+          constituency_id: data.constituency_id || undefined
+        });
       } else {
         setError(data.error);
         setPinValue('');

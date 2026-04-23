@@ -39,7 +39,7 @@ export default function GuestRegistration({ onBack }) {
       {!guestPins ? (
         <form onSubmit={handleRegister}>
           <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
-            Register to receive temporary 15-minute PINs for testing the DVS platform.
+            Register to receive temporary 15-minute PINs for testing all 3 roles of the DVS platform.
           </p>
           
           <div className="input-group">
@@ -66,7 +66,7 @@ export default function GuestRegistration({ onBack }) {
           {error && <div style={{ color: 'var(--error-color)', marginBottom: '1rem' }}>{error}</div>}
           
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginBottom: '1rem' }} disabled={loading}>
-            {loading ? 'Generating...' : 'Get Demo Access'}
+            {loading ? 'Generating...' : 'Get Demo Access (All 3 Roles)'}
           </button>
           
           <button type="button" className="btn btn-secondary" style={{ width: '100%' }} onClick={onBack}>
@@ -76,20 +76,37 @@ export default function GuestRegistration({ onBack }) {
       ) : (
         <div style={{ textAlign: 'center' }}>
           <div style={{ background: 'rgba(34, 197, 94, 0.1)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--success-color)', marginBottom: '1.5rem' }}>
-            <h3 style={{ color: 'var(--success-color)', margin: '0 0 0.5rem 0' }}>✅ Session Active</h3>
-            <p style={{ margin: 0, fontSize: '0.9rem' }}>These PINs will expire in exactly 15 minutes.</p>
-          </div>
-          
-          <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', textAlign: 'left' }}>
-            <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>ADMIN ROLE</p>
-            <p style={{ margin: 0, fontSize: '1.2rem' }}>Username: <strong>admin</strong></p>
-            <p style={{ margin: 0, fontSize: '1.2rem' }}>PIN: <strong style={{ letterSpacing: '2px', color: 'var(--primary-color)' }}>{guestPins.adminPin}</strong></p>
+            <h3 style={{ color: 'var(--success-color)', margin: '0 0 0.5rem 0' }}>✅ Session Active — 15 Minutes</h3>
+            <p style={{ margin: 0, fontSize: '0.85rem' }}>You can test all 3 roles with the PINs below. Pick a role on the Management Portal login.</p>
           </div>
 
-          <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', textAlign: 'left' }}>
-            <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>POLLING OFFICER ROLE</p>
-            <p style={{ margin: 0, fontSize: '1.2rem' }}>Username: <strong>officer_s_1_c_1</strong></p>
-            <p style={{ margin: 0, fontSize: '1.2rem' }}>PIN: <strong style={{ letterSpacing: '2px', color: 'var(--primary-color)' }}>{guestPins.officerPin}</strong></p>
+          {/* Super Admin PIN */}
+          <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', textAlign: 'left', border: '1px solid rgba(168, 85, 247, 0.4)' }}>
+            <p style={{ margin: '0 0 0.4rem 0', color: '#a855f7', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>👑 Super Admin Role</p>
+            <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem' }}>Username: <strong>superadmin</strong></p>
+            <p style={{ margin: 0, fontSize: '1.1rem' }}>PIN: <strong style={{ letterSpacing: '3px', color: '#a855f7', fontSize: '1.4rem' }}>{guestPins.superadminPin}</strong></p>
+          </div>
+
+          {/* General Admin PIN */}
+          <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', textAlign: 'left', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
+            <p style={{ margin: '0 0 0.4rem 0', color: 'var(--primary-color)', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>🛡️ General Admin Role</p>
+            <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem' }}>Username: <strong>admin</strong></p>
+            <p style={{ margin: 0, fontSize: '1.1rem' }}>PIN: <strong style={{ letterSpacing: '3px', color: 'var(--primary-color)', fontSize: '1.4rem' }}>{guestPins.adminPin}</strong></p>
+          </div>
+
+          {/* Polling Officer PIN — Area Specific */}
+          <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', textAlign: 'left', border: '1px solid rgba(34, 197, 94, 0.4)' }}>
+            <p style={{ margin: '0 0 0.4rem 0', color: 'var(--success-color)', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              🗳️ Polling Officer Role <span style={{ fontSize: '0.65rem', opacity: 0.8, fontWeight: 'normal' }}>(Area-Specific)</span>
+            </p>
+            <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem' }}>Username: <strong>{guestPins.officerUsername}</strong></p>
+            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem' }}>
+              📍 Assigned Area: <strong style={{ color: 'white' }}>{guestPins.officerArea}</strong>
+            </p>
+            <p style={{ margin: 0, fontSize: '1.1rem' }}>PIN: <strong style={{ letterSpacing: '3px', color: 'var(--success-color)', fontSize: '1.4rem' }}>{guestPins.officerPin}</strong></p>
+            <p style={{ margin: '0.6rem 0 0 0', padding: '0.5rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '6px', fontSize: '0.78rem', color: '#fcd34d', textAlign: 'left' }}>
+              ⚠️ This officer PIN only works for the constituency shown above. When logging in as Polling Officer, select "<strong>{guestPins.officerArea}</strong>" from the Assigned Area dropdown.
+            </p>
           </div>
           
           <button type="button" className="btn btn-primary" style={{ width: '100%' }} onClick={onBack}>
