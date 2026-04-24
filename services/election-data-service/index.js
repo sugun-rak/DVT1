@@ -400,9 +400,33 @@ app.post('/cast', async (req, res) => {
     }
 });
 
-// ── Keep-Alive Health Endpoints (for cron-job.org pinging) ──────────────
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', service: 'election-data-service', timestamp: new Date().toISOString() });
+const rateLimit = require('express-rate-limit');
+
+// ── Rate Limiter
+const limiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests' }
+});
+app.use(limiter);
+
+// ── Keep-Alive Health Endpoints (pings DB to keep Neon awake) ──────────────
+app.get('/health', async (req, res) => {
+    let dbStatus = 'error';
+    try {
+        await pool.query('SELECT 1');
+        dbStatus = 'connected';
+    } catch (e) {
+        console.error('[health] DB ping failed:', e.message);
+    }
+    res.status(200).json({ 
+        status: 'ok', 
+        service: 'election-data-service', 
+        db: dbStatus,
+        timestamp: new Date().toISOString() 
+    });
 });
 app.get('/ping', (req, res) => {
     res.status(200).json({ status: 'ok' });

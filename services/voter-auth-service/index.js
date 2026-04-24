@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const rateLimit = require('express-rate-limit');
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -200,6 +201,32 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dvt-secure-jwt-secret-key-2026';
 
 app.use(cors());
 app.use(express.json());
+
+// ── Rate Limiter — sends Retry-After header so frontend backoff knows how long to wait
+const limiter = rateLimit({
+    windowMs: 60 * 1000,          // 1-minute window
+    max: 300,                     // 300 requests per IP per minute
+    standardHeaders: true,        // includes RateLimit-* headers
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again shortly.' }
+});
+app.use(limiter);
+
+// ── In-Memory Status Cache (10s TTL) — decouples DB load from admin polling frequency
+const statusCache = new Map();
+function getCached(key) {
+    const entry = statusCache.get(key);
+    if (entry && (Date.now() - entry.at) < 10000) return entry.data;
+    return null;
+}
+function setCache(key, data) {
+    statusCache.set(key, { data, at: Date.now() });
+    // Evict old cache entries every 100 sets to prevent unbounded growth
+    if (statusCache.size > 200) {
+        const oldest = [...statusCache.entries()].sort((a,b) => a[1].at - b[1].at)[0];
+        if (oldest) statusCache.delete(oldest[0]);
+    }
+}
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -442,17 +469,22 @@ app.post('/officer/login', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Database error' }); }
 });
 
-// Officer: Get Status
+// Officer: Get Status (with 10s cache to reduce DB load)
 app.get('/officer/status/:constituencyId', async (req, res) => {
     try {
-        const result = await pool.query('SELECT is_active, ballot_enabled FROM constituency_status WHERE constituency_id = $1', [req.params.constituencyId]);
+        const cId = req.params.constituencyId;
+        const cached = getCached(`status:${cId}`);
+        if (cached) return res.json(cached);
+
+        const result = await pool.query('SELECT is_active, ballot_enabled FROM constituency_status WHERE constituency_id = $1', [cId]);
         const row = result.rows[0];
-        if (!row) return res.json({ is_active: false, ballot_enabled: false });
-        res.json({ is_active: !!row.is_active, ballot_enabled: !!row.ballot_enabled });
+        const data = { is_active: !!row?.is_active, ballot_enabled: !!row?.ballot_enabled };
+        setCache(`status:${cId}`, data);
+        res.json(data);
     } catch (err) { res.status(500).json({ error: 'Database error' }); }
 });
 
-// Officer: Toggle Status
+// Officer: Toggle Status (invalidate cache on write)
 app.post('/officer/toggle', async (req, res) => {
     try {
         const { constituency_id, is_active } = req.body;
@@ -462,11 +494,12 @@ app.post('/officer/toggle', async (req, res) => {
             ON CONFLICT (constituency_id) 
             DO UPDATE SET is_active = $2, ballot_enabled = false
         `, [constituency_id, is_active]);
+        statusCache.delete(`status:${constituency_id}`); // Invalidate cache immediately
         res.json({ success: true, is_active });
     } catch (err) { res.status(500).json({ error: 'Failed to update status' }); }
 });
 
-// Officer: Enable Ballot
+// Officer: Enable Ballot (invalidate cache on write)
 app.post('/officer/enable-ballot', async (req, res) => {
     try {
         const { constituency_id } = req.body;
@@ -476,6 +509,7 @@ app.post('/officer/enable-ballot', async (req, res) => {
             ON CONFLICT (constituency_id) 
             DO UPDATE SET ballot_enabled = true
         `, [constituency_id]);
+        statusCache.delete(`status:${constituency_id}`); // Invalidate cache immediately
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Failed to enable ballot' }); }
 });
@@ -590,13 +624,23 @@ app.get('/voters', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Database error' }); }
 });
 
-// ── Keep-Alive Health Endpoints (for cron-job.org pinging) ──────────────
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', service: 'voter-auth-service', timestamp: new Date().toISOString() });
+// ── Keep-Alive Health Endpoints — NOW pings DB too (keeps Neon awake via cron-job.org)
+app.get('/health', async (req, res) => {
+    let dbStatus = 'error';
+    try {
+        await pool.query('SELECT 1');
+        dbStatus = 'connected';
+    } catch (e) {
+        console.error('[health] DB ping failed:', e.message);
+    }
+    res.status(200).json({
+        status: 'ok',
+        service: 'voter-auth-service',
+        db: dbStatus,
+        timestamp: new Date().toISOString()
+    });
 });
-app.get('/ping', (req, res) => {
-    res.status(200).json({ status: 'ok' });
-});
+app.get('/ping', (req, res) => res.status(200).json({ status: 'ok' }));
 
 app.listen(port, () => {
     console.log(`Voter Auth Service running on port ${port}`);

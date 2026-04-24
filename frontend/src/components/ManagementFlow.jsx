@@ -39,6 +39,30 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
 
   // Guard: prevent overlapping poll requests (key cause of 429 errors)
   const isPollingRef = useRef(false);
+  const [isIdle, setIsIdle] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+
+  // ── fetchWithBackoff utility ──
+  const fetchWithBackoff = async (url, options = {}, retries = 3, backoff = 5000) => {
+    try {
+      const res = await fetch(url, options);
+      if (res.status === 429 && retries > 0) {
+        // Get Retry-After if available, otherwise use default
+        const retryAfter = res.headers.get('Retry-After');
+        const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : backoff;
+        console.warn(`429 received. Retrying in ${waitMs}ms...`);
+        await new Promise(r => setTimeout(r, waitMs));
+        return fetchWithBackoff(url, options, retries - 1, backoff * 2);
+      }
+      return res;
+    } catch (e) {
+      if (retries > 0) {
+        await new Promise(r => setTimeout(r, backoff));
+        return fetchWithBackoff(url, options, retries - 1, backoff * 2);
+      }
+      throw e;
+    }
+  };
 
   const authHeaders = {
     'Authorization': `Bearer ${managementSession?.token || ''}`,
@@ -54,19 +78,19 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
         const url = selectedConstituency 
           ? `${API_URL}/voting/stats?constituencyId=${selectedConstituency}`
           : `${API_URL}/voting/stats`;
-        const res = await fetch(url);
+        const res = await fetchWithBackoff(url);
         if (res.ok) setStats(await res.json());
       } else if (role === 'admin') {
-        const cRes = await fetch(`${API_URL}/voting/constituencies`);
+        const cRes = await fetchWithBackoff(`${API_URL}/voting/constituencies`);
         if (!cRes.ok) return;
         const cData = await cRes.json();
         // Sequential fetches to avoid burst — slower but no 429
         const results = [];
         for (const c of cData) {
           try {
-            const sRes = await fetch(`${API_URL}/verification/officer/status/${c.id}`, { headers: authHeaders });
+            const sRes = await fetchWithBackoff(`${API_URL}/verification/officer/status/${c.id}`, { headers: authHeaders });
             const sData = sRes.ok ? await sRes.json() : {};
-            const vRes = await fetch(`${API_URL}/voting/stats?constituencyId=${c.id}`, { headers: authHeaders });
+            const vRes = await fetchWithBackoff(`${API_URL}/voting/stats?constituencyId=${c.id}`, { headers: authHeaders });
             const vData = vRes.ok ? await vRes.json() : {};
             results.push({ ...c, is_active: !!sData.is_active, ballot_enabled: !!sData.ballot_enabled, total_votes: vData.total_votes || 0 });
           } catch (e) {
@@ -75,18 +99,18 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
         }
         setHealthData(results);
       } else if (role === 'officer') {
-        const statusRes = await fetch(`${API_URL}/verification/officer/status/${constituency_id}?t=${Date.now()}`, { cache: 'no-store', headers: authHeaders });
+        const statusRes = await fetchWithBackoff(`${API_URL}/verification/officer/status/${constituency_id}?t=${Date.now()}`, { cache: 'no-store', headers: authHeaders });
         if (statusRes.ok) {
           const statusData = await statusRes.json();
           setCurrentStatus(statusData.is_active ? 'ACTIVE' : 'STOPPED');
           setBallotEnabled(statusData.ballot_enabled);
         }
-        const statsRes = await fetch(`${API_URL}/voting/stats?constituencyId=${constituency_id}&t=${Date.now()}`, { cache: 'no-store', headers: authHeaders });
+        const statsRes = await fetchWithBackoff(`${API_URL}/voting/stats?constituencyId=${constituency_id}&t=${Date.now()}`, { cache: 'no-store', headers: authHeaders });
         if (statsRes.ok) {
           const statsData = await statsRes.json();
           setTotalVotes(statsData.total_votes || 0);
         }
-        const histRes = await fetch(`${API_URL}/voting/session-history?constituencyId=${constituency_id}`, { headers: authHeaders });
+        const histRes = await fetchWithBackoff(`${API_URL}/voting/session-history?constituencyId=${constituency_id}`, { headers: authHeaders });
         if (histRes.ok) setSessionHistory((await histRes.json()) || []);
       }
     } catch(e) {
@@ -99,29 +123,52 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   const loadData = async () => {
     if (role === 'admin') {
       try {
-        const [sRes, cRes, pRes, candRes] = await Promise.all([
-          fetch(`${API_URL}/voting/parties`), 
-          fetch(`${API_URL}/voting/candidates`) 
+        const [sRes, cRes] = await Promise.all([
+          fetchWithBackoff(`${API_URL}/voting/parties`), 
+          fetchWithBackoff(`${API_URL}/voting/candidates`) 
         ]);
-        setStates(await sRes.json());
-        setConstituencies(await cRes.json());
-        setParties(await pRes.json());
-        setCandidates(await candRes.json());
+        setParties(await sRes.json());
+        setCandidates(await cRes.json());
       } catch (err) {}
     }
   };
 
+  // ── Smart Polling: Visibility & Idle Detection ──
   useEffect(() => {
+    const onVisibilityChange = () => setIsVisible(document.visibilityState === 'visible');
+    let idleTimer;
+    const resetIdle = () => {
+      setIsIdle(false);
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => setIsIdle(true), 3 * 60 * 1000); // 3 minutes
+    };
+
+    window.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('mousemove', resetIdle);
+    window.addEventListener('keydown', resetIdle);
+    resetIdle();
+
+    return () => {
+      window.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('mousemove', resetIdle);
+      window.removeEventListener('keydown', resetIdle);
+      clearTimeout(idleTimer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible) return; // PAUSE polling if tab hidden
+
     loadStats();
     loadData();
-    // Role-based polling intervals to avoid 429:
-    // admin: 30s (makes ~100 sequential calls per poll)
-    // superadmin: 10s (makes 1 call per poll)
-    // officer: 5s (makes 3 calls per poll)
-    const intervalMs = role === 'admin' ? 30000 : role === 'superadmin' ? 10000 : 5000;
+
+    // adaptive intervals: slow down if idle
+    let intervalMs = role === 'admin' ? 30000 : role === 'superadmin' ? 10000 : 5000;
+    if (isIdle) intervalMs = 60000; // 60s if idle
+
     const interval = setInterval(loadStats, intervalMs);
     return () => clearInterval(interval);
-  }, [selectedConstituency, role]);
+  }, [selectedConstituency, role, isVisible, isIdle]);
 
   const handleExport = (format) => {
     if (!stats.party_stats || stats.party_stats.length === 0) {
