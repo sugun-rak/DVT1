@@ -23,6 +23,8 @@ function App() {
   });
   
   const [authView, setAuthView] = useState({ view: 'select', role: '', user: '' });
+  const [guestExpiring, setGuestExpiring] = useState(null); // { secondsLeft, isExpired }
+  const [showExpiredBanner, setShowExpiredBanner] = useState(false);
 
   useEffect(() => {
     if (managementSession) {
@@ -35,6 +37,58 @@ function App() {
   useEffect(() => {
     localStorage.setItem('dvt_voting_mode', publicVotingMode);
   }, [publicVotingMode]);
+
+  // ── Guest Session Auto-Logout ────────────────────────────────────────────
+  useEffect(() => {
+    if (!managementSession?.token) { setGuestExpiring(null); return; }
+
+    // Decode JWT payload (no library needed — just base64 decode)
+    let payload = null;
+    try {
+      payload = JSON.parse(atob(managementSession.token.split('.')[1]));
+    } catch (e) { return; }
+
+    // Only apply auto-logout for guest sessions (id starts with 'guest_')
+    if (!payload?.id?.startsWith('guest_')) { setGuestExpiring(null); return; }
+
+    const expiryMs = payload.exp * 1000;
+    const guestInfo = JSON.parse(localStorage.getItem('dvt_guest_info') || '{}');
+
+    // Countdown ticker
+    const tickerId = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((expiryMs - Date.now()) / 1000));
+      setGuestExpiring({ secondsLeft: remaining, isExpired: remaining === 0 });
+    }, 1000);
+
+    // Auto-logout at exact expiry moment
+    const logoutDelay = Math.max(0, expiryMs - Date.now());
+    const logoutId = setTimeout(async () => {
+      setShowExpiredBanner(true);
+      // Fire expiry notification email to the guest
+      try {
+        await fetch(`${API_URL}/verification/guest/expired-notify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: guestInfo.email,
+            name: guestInfo.name,
+            timezone: guestInfo.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            expiredAt: String(expiryMs)
+          })
+        });
+      } catch (e) { console.error('Expiry notify failed', e); }
+
+      // Show banner for 4 seconds then logout
+      setTimeout(() => {
+        setShowExpiredBanner(false);
+        localStorage.removeItem('dvt_guest_info');
+        setManagementSession(null);
+        setAuthView({ view: 'role_select', role: '', user: '' });
+      }, 4000);
+    }, logoutDelay);
+
+    return () => { clearInterval(tickerId); clearTimeout(logoutId); };
+  }, [managementSession]);
 
   // Backend Wake-up Sequence
   useEffect(() => {
@@ -146,6 +200,46 @@ function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      {/* Guest Session Expiry Banner */}
+      {showExpiredBanner && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+          background: 'linear-gradient(90deg, #7f1d1d, #991b1b)',
+          padding: '1rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: '1rem', borderBottom: '2px solid #ef4444',
+          animation: 'fadeInDown 0.4s ease'
+        }}>
+          <span style={{ fontSize: '1.5rem' }}>⏰</span>
+          <div>
+            <p style={{ margin: 0, fontWeight: 'bold', color: '#fecaca' }}>Demo Session Expired</p>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#fca5a5' }}>You have been automatically logged out. Check your email for a follow-up notification.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Guest Session Live Countdown Banner (in Management Portal) */}
+      {managementSession && guestExpiring !== null && (
+        <div style={{
+          padding: '0.4rem 1.5rem',
+          background: guestExpiring.secondsLeft > 120
+            ? 'rgba(34,197,94,0.12)'
+            : guestExpiring.secondsLeft > 60
+            ? 'rgba(245,158,11,0.15)'
+            : 'rgba(239,68,68,0.18)',
+          borderBottom: `1px solid ${guestExpiring.secondsLeft > 120 ? 'rgba(34,197,94,0.3)' : guestExpiring.secondsLeft > 60 ? 'rgba(245,158,11,0.4)' : 'rgba(239,68,68,0.5)'}`,
+          display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', fontSize: '0.85rem'
+        }}>
+          <span>🔑 Guest Demo Session</span>
+          <span style={{
+            fontFamily: 'monospace', fontWeight: 'bold', fontSize: '1rem',
+            color: guestExpiring.secondsLeft > 120 ? '#22c55e' : guestExpiring.secondsLeft > 60 ? '#f59e0b' : '#ef4444'
+          }}>
+            ⏱ {String(Math.floor(guestExpiring.secondsLeft / 60)).padStart(2,'0')}:{String(guestExpiring.secondsLeft % 60).padStart(2,'0')}
+          </span>
+          <span style={{ color: 'var(--text-secondary)' }}>remaining</span>
+        </div>
+      )}
+
       <header style={{ 
         display: 'flex', justifyContent: 'flex-end', alignItems: 'center', 
         padding: '1rem 2rem', gap: '10px', background: 'rgba(0,0,0,0.5)', borderBottom: '1px solid rgba(255,255,255,0.1)'

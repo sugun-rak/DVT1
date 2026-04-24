@@ -32,6 +32,151 @@ async function sendNotificationEmail(subject, text) {
     }
 }
 
+// Send email to a specific guest recipient (HTML formatted)
+async function sendGuestEmail(to, subject, htmlBody) {
+    try {
+        if (!process.env.SMTP_PASS) {
+            console.log(`\n[MOCK GUEST EMAIL] To: ${to} | Subject: ${subject}\n`);
+            return;
+        }
+        await transporter.sendMail({
+            from: `"DVS Digital Voting System" <${process.env.SMTP_USER || 'sugun.rakshit@gmail.com'}>`,
+            to: to,
+            subject: subject,
+            html: htmlBody
+        });
+    } catch (e) {
+        console.error("Guest email failed to send:", e);
+    }
+}
+
+// Format a Date in a given IANA timezone, returning a human-readable string
+function formatInTimezone(date, tz, label) {
+    try {
+        const formatted = date.toLocaleString('en-US', {
+            timeZone: tz,
+            weekday: 'short', year: 'numeric', month: 'short',
+            day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: true, timeZoneName: 'short'
+        });
+        return `<b>${label}:</b> ${formatted}`;
+    } catch (e) {
+        return `<b>${label}:</b> ${date.toISOString()}`;
+    }
+}
+
+// Build a styled HTML email body for guest access notifications
+function buildGuestAccessEmail({ guestName, adminPin, superadminPin, officerPin, expiresAt, guestTimezone }) {
+    const expiryDate = new Date(expiresAt);
+    const localTz = guestTimezone || 'UTC';
+    const localTime = formatInTimezone(expiryDate, localTz, `Your Local Time (${localTz})`);
+    const istTime = formatInTimezone(expiryDate, 'Asia/Kolkata', 'IST — India Standard Time (UTC+05:30)');
+    const utcTime = `<b>GMT / UTC:</b> ${expiryDate.toUTCString()}`;
+
+    return `
+    <!DOCTYPE html>
+    <html><head><meta charset="UTF-8"></head>
+    <body style="margin:0;padding:0;background:#0f172a;font-family:Arial,sans-serif;color:#e2e8f0">
+      <div style="max-width:600px;margin:0 auto;padding:32px 16px">
+
+        <div style="text-align:center;margin-bottom:32px">
+          <h1 style="color:#38bdf8;font-size:28px;margin:0">🗳️ DVS Digital Voting System</h1>
+          <p style="color:#94a3b8;margin:8px 0 0">Beta Tester Demo Access Granted</p>
+        </div>
+
+        <div style="background:#1e293b;border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid #334155">
+          <p style="margin:0 0 8px">Hello <strong>${guestName}</strong>,</p>
+          <p style="margin:0;color:#94a3b8">Your temporary <strong style="color:#38bdf8">15-minute demo access</strong> has been generated. Use the PINs below to explore all three management roles on the DVS platform.</p>
+        </div>
+
+        <!-- PINs -->
+        <div style="background:#2d1b69;border-radius:10px;padding:20px;margin-bottom:16px;border-left:4px solid #a855f7">
+          <p style="margin:0 0 6px;color:#c4b5fd;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase">👑 Super Admin</p>
+          <p style="margin:0 0 4px">Username: <code style="color:#e2e8f0">superadmin</code></p>
+          <p style="margin:0">PIN: <strong style="font-size:28px;letter-spacing:6px;color:#a855f7;font-family:monospace">${superadminPin}</strong></p>
+          <p style="margin:8px 0 0;font-size:12px;color:#c4b5fd">Access: Live Results, Stats, Export</p>
+        </div>
+
+        <div style="background:#1e3a5f;border-radius:10px;padding:20px;margin-bottom:16px;border-left:4px solid #38bdf8">
+          <p style="margin:0 0 6px;color:#93c5fd;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase">🛡️ General Admin</p>
+          <p style="margin:0 0 4px">Username: <code style="color:#e2e8f0">admin</code></p>
+          <p style="margin:0">PIN: <strong style="font-size:28px;letter-spacing:6px;color:#38bdf8;font-family:monospace">${adminPin}</strong></p>
+          <p style="margin:8px 0 0;font-size:12px;color:#93c5fd">Access: Machine Health Dashboard</p>
+        </div>
+
+        <div style="background:#14532d;border-radius:10px;padding:20px;margin-bottom:24px;border-left:4px solid #22c55e">
+          <p style="margin:0 0 6px;color:#86efac;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase">🗳️ Polling Officer</p>
+          <p style="margin:0 0 4px">Username: <code style="color:#e2e8f0">officer_[any area]</code> — pick any constituency</p>
+          <p style="margin:0">PIN: <strong style="font-size:28px;letter-spacing:6px;color:#22c55e;font-family:monospace">${officerPin}</strong></p>
+          <p style="margin:8px 0 0;font-size:12px;color:#86efac">✅ Universal — works for every constituency</p>
+        </div>
+
+        <!-- Expiry Times in 3 Timezones -->
+        <div style="background:#1e293b;border-radius:10px;padding:20px;margin-bottom:24px;border:1px solid #f59e0b">
+          <p style="margin:0 0 12px;color:#fcd34d;font-size:13px;font-weight:bold">⏱️ Session Expires At (All 3 Time Zones)</p>
+          <p style="margin:0 0 8px;font-size:14px">${localTime}</p>
+          <p style="margin:0 0 8px;font-size:14px">${istTime}</p>
+          <p style="margin:0;font-size:14px">${utcTime}</p>
+        </div>
+
+        <div style="background:#1e293b;border-radius:10px;padding:16px;margin-bottom:24px;border:1px solid #334155">
+          <p style="margin:0;color:#94a3b8;font-size:13px">⚠️ These PINs are <strong>single-use temporary credentials</strong> and expire in 15 minutes. Do not share them. After expiry, you will be automatically logged out.</p>
+        </div>
+
+        <div style="text-align:center;color:#475569;font-size:12px">
+          <p style="margin:0">© ${new Date().getFullYear()} SUGUN-RAKSHIT DVS Digital Voting System</p>
+          <p style="margin:4px 0 0">Secure. Transparent. Verifiable.</p>
+        </div>
+      </div>
+    </body></html>
+    `;
+}
+
+// Build expiry notification email HTML
+function buildGuestExpiredEmail({ guestName, expiredAt, guestTimezone }) {
+    const expiryDate = new Date(expiredAt);
+    const localTz = guestTimezone || 'UTC';
+    const localTime = formatInTimezone(expiryDate, localTz, `Your Local Time (${localTz})`);
+    const istTime = formatInTimezone(expiryDate, 'Asia/Kolkata', 'IST — India Standard Time (UTC+05:30)');
+    const utcTime = `<b>GMT / UTC:</b> ${expiryDate.toUTCString()}`;
+
+    return `
+    <!DOCTYPE html>
+    <html><head><meta charset="UTF-8"></head>
+    <body style="margin:0;padding:0;background:#0f172a;font-family:Arial,sans-serif;color:#e2e8f0">
+      <div style="max-width:600px;margin:0 auto;padding:32px 16px">
+
+        <div style="text-align:center;margin-bottom:32px">
+          <h1 style="color:#38bdf8;font-size:28px;margin:0">🗳️ DVS Digital Voting System</h1>
+          <p style="color:#94a3b8;margin:8px 0 0">Demo Session Expired</p>
+        </div>
+
+        <div style="background:#7f1d1d;border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid #ef4444">
+          <h2 style="margin:0 0 12px;color:#fca5a5">⏰ Your Demo Session Has Expired</h2>
+          <p style="margin:0;color:#fecaca">Hello <strong>${guestName}</strong>, your 15-minute demo access to DVS has ended and you have been automatically logged out.</p>
+        </div>
+
+        <div style="background:#1e293b;border-radius:10px;padding:20px;margin-bottom:24px;border:1px solid #f59e0b">
+          <p style="margin:0 0 12px;color:#fcd34d;font-size:13px;font-weight:bold">⏱️ Session Expired At (All 3 Time Zones)</p>
+          <p style="margin:0 0 8px;font-size:14px">${localTime}</p>
+          <p style="margin:0 0 8px;font-size:14px">${istTime}</p>
+          <p style="margin:0;font-size:14px">${utcTime}</p>
+        </div>
+
+        <div style="background:#1e293b;border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid #334155;text-align:center">
+          <p style="margin:0 0 16px;color:#94a3b8">To continue exploring the DVS platform, request a new demo session from the login screen.</p>
+          <p style="margin:0;font-size:24px">🔑 Request New Access → <strong style="color:#38bdf8">Beta Tester Registration</strong></p>
+        </div>
+
+        <div style="text-align:center;color:#475569;font-size:12px">
+          <p style="margin:0">© ${new Date().getFullYear()} SUGUN-RAKSHIT DVS Digital Voting System</p>
+          <p style="margin:4px 0 0">Secure. Transparent. Verifiable.</p>
+        </div>
+      </div>
+    </body></html>
+    `;
+}
+
 const guest_pins = new Map();
 setInterval(() => {
     const now = Date.now();
@@ -50,7 +195,10 @@ app.use(express.json());
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000
 });
 
 async function initDB(retries = 10) {
@@ -171,7 +319,7 @@ function recordAttempt(username, success) {
 // Guest Register
 app.post('/guest/register', async (req, res) => {
     try {
-        const { email, name } = req.body;
+        const { email, name, timezone } = req.body;
         if (!email || !name) return res.status(400).json({ error: 'Email and Name required' });
         
         const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString();
@@ -180,23 +328,43 @@ app.post('/guest/register', async (req, res) => {
         const officerPin = generatePin();
         
         const expiresAt = Date.now() + 15 * 60 * 1000;
+        const guestTimezone = timezone || 'UTC';
         
-        // Guest PINs: admin/superadmin are username-locked.
-        // Officer PIN is UNIVERSAL — works for any constituency, just like the permanent owner PIN 0000.
-        guest_pins.set(adminPin, { role: 'admin', expiresAt, username: 'admin' });
-        guest_pins.set(superadminPin, { role: 'superadmin', expiresAt, username: 'superadmin' });
-        guest_pins.set(officerPin, { role: 'officer', expiresAt, universal: true });
+        // Store email, name, and timezone so we can send the expiry notification later
+        guest_pins.set(adminPin, { role: 'admin', expiresAt, username: 'admin', guestEmail: email, guestName: name, guestTimezone });
+        guest_pins.set(superadminPin, { role: 'superadmin', expiresAt, username: 'superadmin', guestEmail: email, guestName: name, guestTimezone });
+        guest_pins.set(officerPin, { role: 'officer', expiresAt, universal: true, guestEmail: email, guestName: name, guestTimezone });
         
+        // Owner notification (plain text, as before)
         await sendNotificationEmail('New Guest Beta Tester Registered', 
             `User ${name} (${email}) has registered for a 15-minute Guest Session.\n` +
             `SuperAdmin Temp PIN: ${superadminPin} (username: superadmin)\n` +
             `Admin Temp PIN: ${adminPin} (username: admin)\n` +
             `Officer Temp PIN: ${officerPin} (UNIVERSAL — any constituency)\n` +
-            `Expires at: ${new Date(expiresAt).toISOString()}`
+            `Expires at: ${new Date(expiresAt).toISOString()}\n` +
+            `Guest Timezone: ${guestTimezone}`
         );
+
+        // Guest notification — send styled HTML email to the guest's own inbox
+        const guestHtml = buildGuestAccessEmail({ guestName: name, adminPin, superadminPin, officerPin, expiresAt, guestTimezone });
+        await sendGuestEmail(email, '🗳️ DVS Demo Access — Your Temporary PINs (15 min)', guestHtml);
         
         res.json({ success: true, adminPin, superadminPin, officerPin, expiresAt });
     } catch (err) { res.status(500).json({ error: 'Failed to generate guest pins' }); }
+});
+
+// Guest Expiry Notification — called by frontend when JWT expires
+app.post('/guest/expired-notify', async (req, res) => {
+    try {
+        const { email, name, timezone, expiredAt } = req.body;
+        if (!email || !name) return res.status(400).json({ error: 'Email and name required' });
+        const expiredDate = expiredAt ? parseInt(expiredAt) : Date.now();
+        const guestTimezone = timezone || 'UTC';
+
+        const html = buildGuestExpiredEmail({ guestName: name, expiredAt: expiredDate, guestTimezone });
+        await sendGuestEmail(email, '⏰ DVS Demo Session Expired — Request New Access', html);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: 'Failed to send expiry notification' }); }
 });
 
 // Admin Login (handles admin AND superadmin roles)
@@ -409,6 +577,14 @@ app.get('/voters', async (req, res) => {
         const result = await pool.query(query, params);
         res.json(result.rows || []);
     } catch (err) { res.status(500).json({ error: 'Database error' }); }
+});
+
+// ── Keep-Alive Health Endpoints (for cron-job.org pinging) ──────────────
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', service: 'voter-auth-service', timestamp: new Date().toISOString() });
+});
+app.get('/ping', (req, res) => {
+    res.status(200).json({ status: 'ok' });
 });
 
 app.listen(port, () => {

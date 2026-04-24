@@ -11,7 +11,10 @@ app.use(express.json());
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000
 });
 
 async function initDB(retries = 10) {
@@ -395,6 +398,14 @@ app.post('/cast', async (req, res) => {
         }
         res.status(500).json({ error: 'Failed to record vote' });
     }
+});
+
+// ── Keep-Alive Health Endpoints (for cron-job.org pinging) ──────────────
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', service: 'election-data-service', timestamp: new Date().toISOString() });
+});
+app.get('/ping', (req, res) => {
+    res.status(200).json({ status: 'ok' });
 });
 
 app.listen(port, () => {

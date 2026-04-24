@@ -7,6 +7,14 @@ const port = process.env.PORT || 8000;
 
 app.use(cors());
 
+// ── Keep-Alive Health Endpoints (for cron-job.org pinging) ──────────────
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', service: 'api-gateway', timestamp: new Date().toISOString() });
+});
+app.get('/ping', (req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
+
 // Proxy verification requests to Verification Service
 app.use('/api/verification', createProxyMiddleware({ 
     target: process.env.VERIFICATION_SERVICE_URL || 'http://localhost:8001', 
