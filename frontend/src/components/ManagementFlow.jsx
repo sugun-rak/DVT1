@@ -123,12 +123,16 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   const loadData = async () => {
     if (role === 'admin') {
       try {
-        const [sRes, cRes] = await Promise.all([
-          fetchWithBackoff(`${API_URL}/voting/parties`), 
-          fetchWithBackoff(`${API_URL}/voting/candidates`) 
+        const [stRes, ctRes, pRes, candRes] = await Promise.all([
+          fetchWithBackoff(`${API_URL}/voting/states`),
+          fetchWithBackoff(`${API_URL}/voting/constituencies`),
+          fetchWithBackoff(`${API_URL}/voting/parties`),
+          fetchWithBackoff(`${API_URL}/voting/candidates`)
         ]);
-        setParties(await sRes.json());
-        setCandidates(await cRes.json());
+        if (stRes.ok) setStates(await stRes.json());
+        if (ctRes.ok) setConstituencies(await ctRes.json());
+        if (pRes.ok) setParties(await pRes.json());
+        if (candRes.ok) setCandidates(await candRes.json());
       } catch (err) {}
     }
   };
