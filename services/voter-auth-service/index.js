@@ -50,28 +50,36 @@ async function sendGuestEmail(to, subject, htmlBody) {
     }
 }
 
-// Format a Date in a given IANA timezone, returning a human-readable string
-function formatInTimezone(date, tz, label) {
-    try {
-        const formatted = date.toLocaleString('en-US', {
-            timeZone: tz,
-            weekday: 'short', year: 'numeric', month: 'short',
-            day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
-            hour12: true, timeZoneName: 'short'
-        });
-        return `<b>${label}:</b> ${formatted}`;
-    } catch (e) {
-        return `<b>${label}:</b> ${date.toISOString()}`;
-    }
+// Format a timestamp using a fixed UTC offset (no ICU dependency — works on all Node.js builds)
+function formatWithOffset(dateMs, offsetMins, label, tzAbbr) {
+    const pad = n => String(n).padStart(2, '0');
+    const shifted = new Date(dateMs + offsetMins * 60000);
+    const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const wd = weekdays[shifted.getUTCDay()];
+    const mo = months[shifted.getUTCMonth()];
+    const d = pad(shifted.getUTCDate());
+    const yr = shifted.getUTCFullYear();
+    let h = shifted.getUTCHours();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    const mi = pad(shifted.getUTCMinutes());
+    const se = pad(shifted.getUTCSeconds());
+    const sign = offsetMins >= 0 ? '+' : '-';
+    const absOff = Math.abs(offsetMins);
+    const offH = pad(Math.floor(absOff / 60));
+    const offM = pad(absOff % 60);
+    return `<b>${label}:</b> ${wd}, ${d} ${mo} ${yr} — ${h}:${mi}:${se} ${ampm} ${tzAbbr} (UTC${sign}${offH}:${offM})`;
 }
 
 // Build a styled HTML email body for guest access notifications
-function buildGuestAccessEmail({ guestName, adminPin, superadminPin, officerPin, expiresAt, guestTimezone }) {
-    const expiryDate = new Date(expiresAt);
-    const localTz = guestTimezone || 'UTC';
-    const localTime = formatInTimezone(expiryDate, localTz, `Your Local Time (${localTz})`);
-    const istTime = formatInTimezone(expiryDate, 'Asia/Kolkata', 'IST — India Standard Time (UTC+05:30)');
-    const utcTime = `<b>GMT / UTC:</b> ${expiryDate.toUTCString()}`;
+function buildGuestAccessEmail({ guestName, adminPin, superadminPin, officerPin, expiresAt, guestTimezone, timezoneOffsetMinutes }) {
+    const localOffsetMins = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
+    // Try to derive a short timezone abbreviation from the IANA name (e.g. 'Asia/Kolkata' → 'IST')
+    const localAbbr = guestTimezone ? guestTimezone.split('/').pop().replace('_', ' ') : 'Local';
+    const localTime = formatWithOffset(expiresAt, localOffsetMins, `Your Local Time (${guestTimezone || 'Local'})`, localAbbr);
+    const istTime   = formatWithOffset(expiresAt, 330, 'IST — India Standard Time', 'IST');
+    const utcTime   = formatWithOffset(expiresAt, 0,   'GMT / UTC', 'UTC');
 
     return `
     <!DOCTYPE html>
@@ -133,12 +141,12 @@ function buildGuestAccessEmail({ guestName, adminPin, superadminPin, officerPin,
 }
 
 // Build expiry notification email HTML
-function buildGuestExpiredEmail({ guestName, expiredAt, guestTimezone }) {
-    const expiryDate = new Date(expiredAt);
-    const localTz = guestTimezone || 'UTC';
-    const localTime = formatInTimezone(expiryDate, localTz, `Your Local Time (${localTz})`);
-    const istTime = formatInTimezone(expiryDate, 'Asia/Kolkata', 'IST — India Standard Time (UTC+05:30)');
-    const utcTime = `<b>GMT / UTC:</b> ${expiryDate.toUTCString()}`;
+function buildGuestExpiredEmail({ guestName, expiredAt, guestTimezone, timezoneOffsetMinutes }) {
+    const localOffsetMins = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
+    const localAbbr = guestTimezone ? guestTimezone.split('/').pop().replace('_', ' ') : 'Local';
+    const localTime = formatWithOffset(expiredAt, localOffsetMins, `Your Local Time (${guestTimezone || 'Local'})`, localAbbr);
+    const istTime   = formatWithOffset(expiredAt, 330, 'IST — India Standard Time', 'IST');
+    const utcTime   = formatWithOffset(expiredAt, 0,   'GMT / UTC', 'UTC');
 
     return `
     <!DOCTYPE html>
@@ -329,11 +337,13 @@ app.post('/guest/register', async (req, res) => {
         
         const expiresAt = Date.now() + 15 * 60 * 1000;
         const guestTimezone = timezone || 'UTC';
+        const timezoneOffsetMinutes = typeof req.body.timezoneOffsetMinutes === 'number'
+            ? req.body.timezoneOffsetMinutes : 0;
         
         // Store email, name, and timezone so we can send the expiry notification later
-        guest_pins.set(adminPin, { role: 'admin', expiresAt, username: 'admin', guestEmail: email, guestName: name, guestTimezone });
-        guest_pins.set(superadminPin, { role: 'superadmin', expiresAt, username: 'superadmin', guestEmail: email, guestName: name, guestTimezone });
-        guest_pins.set(officerPin, { role: 'officer', expiresAt, universal: true, guestEmail: email, guestName: name, guestTimezone });
+        guest_pins.set(adminPin, { role: 'admin', expiresAt, username: 'admin', guestEmail: email, guestName: name, guestTimezone, timezoneOffsetMinutes });
+        guest_pins.set(superadminPin, { role: 'superadmin', expiresAt, username: 'superadmin', guestEmail: email, guestName: name, guestTimezone, timezoneOffsetMinutes });
+        guest_pins.set(officerPin, { role: 'officer', expiresAt, universal: true, guestEmail: email, guestName: name, guestTimezone, timezoneOffsetMinutes });
         
         // Owner notification (plain text, as before)
         await sendNotificationEmail('New Guest Beta Tester Registered', 
@@ -342,11 +352,11 @@ app.post('/guest/register', async (req, res) => {
             `Admin Temp PIN: ${adminPin} (username: admin)\n` +
             `Officer Temp PIN: ${officerPin} (UNIVERSAL — any constituency)\n` +
             `Expires at: ${new Date(expiresAt).toISOString()}\n` +
-            `Guest Timezone: ${guestTimezone}`
+            `Guest Timezone: ${guestTimezone} (offset: ${timezoneOffsetMinutes >= 0 ? '+' : ''}${timezoneOffsetMinutes} min)`
         );
 
         // Guest notification — send styled HTML email to the guest's own inbox
-        const guestHtml = buildGuestAccessEmail({ guestName: name, adminPin, superadminPin, officerPin, expiresAt, guestTimezone });
+        const guestHtml = buildGuestAccessEmail({ guestName: name, adminPin, superadminPin, officerPin, expiresAt, guestTimezone, timezoneOffsetMinutes });
         await sendGuestEmail(email, '🗳️ DVS Demo Access — Your Temporary PINs (15 min)', guestHtml);
         
         res.json({ success: true, adminPin, superadminPin, officerPin, expiresAt });
@@ -356,12 +366,13 @@ app.post('/guest/register', async (req, res) => {
 // Guest Expiry Notification — called by frontend when JWT expires
 app.post('/guest/expired-notify', async (req, res) => {
     try {
-        const { email, name, timezone, expiredAt } = req.body;
+        const { email, name, timezone, expiredAt, timezoneOffsetMinutes } = req.body;
         if (!email || !name) return res.status(400).json({ error: 'Email and name required' });
         const expiredDate = expiredAt ? parseInt(expiredAt) : Date.now();
         const guestTimezone = timezone || 'UTC';
+        const offsetMins = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
 
-        const html = buildGuestExpiredEmail({ guestName: name, expiredAt: expiredDate, guestTimezone });
+        const html = buildGuestExpiredEmail({ guestName: name, expiredAt: expiredDate, guestTimezone, timezoneOffsetMinutes: offsetMins });
         await sendGuestEmail(email, '⏰ DVS Demo Session Expired — Request New Access', html);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Failed to send expiry notification' }); }

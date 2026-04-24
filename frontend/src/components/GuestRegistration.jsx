@@ -41,21 +41,23 @@ export default function GuestRegistration({ onBack }) {
     setLoading(true);
     setError(null);
 
-    // Capture guest's browser timezone
+    // Capture guest's browser timezone and UTC offset
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // getTimezoneOffset() returns e.g. -330 for IST (UTC+5:30); negate to get +330
+    const timezoneOffsetMinutes = -(new Date().getTimezoneOffset());
 
     try {
       const res = await fetch(`${API_URL}/verification/guest/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name, timezone })
+        body: JSON.stringify({ email, name, timezone, timezoneOffsetMinutes })
       });
       const data = await res.json();
       
       if (res.ok) {
         setGuestPins(data);
-        // Save guest info in localStorage so App.jsx can use it for auto-logout notify
-        localStorage.setItem('dvt_guest_info', JSON.stringify({ email, name, timezone, expiresAt: data.expiresAt }));
+        // Save guest info in sessionStorage (tab-isolated — not shared with other tabs)
+        sessionStorage.setItem('dvt_guest_info', JSON.stringify({ email, name, timezone, timezoneOffsetMinutes, expiresAt: data.expiresAt }));
       } else {
         setError(data.error || 'Failed to register guest session');
       }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config';
 
@@ -37,51 +37,62 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   const [isScanning, setIsScanning] = useState(false);
   const [scannedVoter, setScannedVoter] = useState(null);
 
+  // Guard: prevent overlapping poll requests (key cause of 429 errors)
+  const isPollingRef = useRef(false);
+
   const authHeaders = {
     'Authorization': `Bearer ${managementSession?.token || ''}`,
     'Content-Type': 'application/json'
   };
 
   const loadStats = async () => {
-    if (role === 'superadmin') {
-      try {
+    // Guard: skip this poll if the previous one is still running (prevents 429)
+    if (isPollingRef.current) return;
+    isPollingRef.current = true;
+    try {
+      if (role === 'superadmin') {
         const url = selectedConstituency 
           ? `${API_URL}/voting/stats?constituencyId=${selectedConstituency}`
           : `${API_URL}/voting/stats`;
         const res = await fetch(url);
-        setStats(await res.json());
-      } catch (e) { console.error(e); }
-    } else if (role === 'admin') {
-      try {
+        if (res.ok) setStats(await res.json());
+      } else if (role === 'admin') {
         const cRes = await fetch(`${API_URL}/voting/constituencies`);
+        if (!cRes.ok) return;
         const cData = await cRes.json();
-        
-        const healthStats = await Promise.all(cData.map(async (c) => {
-          const sRes = await fetch(`${API_URL}/verification/officer/status/${c.id}`, { headers: authHeaders });
-          const sData = await sRes.json();
-          const vRes = await fetch(`${API_URL}/voting/stats?constituencyId=${c.id}`, { headers: authHeaders });
-          const vData = await vRes.json();
-          return { ...c, is_active: sData.is_active, ballot_enabled: sData.ballot_enabled, total_votes: vData.total_votes || 0 };
-        }));
-        setHealthData(healthStats);
-      } catch(e) {}
-    } else if (role === 'officer') {
-      try {
-          const statusRes = await fetch(`${API_URL}/verification/officer/status/${constituency_id}?t=${Date.now()}`, { cache: 'no-store', headers: authHeaders });
+        // Sequential fetches to avoid burst — slower but no 429
+        const results = [];
+        for (const c of cData) {
+          try {
+            const sRes = await fetch(`${API_URL}/verification/officer/status/${c.id}`, { headers: authHeaders });
+            const sData = sRes.ok ? await sRes.json() : {};
+            const vRes = await fetch(`${API_URL}/voting/stats?constituencyId=${c.id}`, { headers: authHeaders });
+            const vData = vRes.ok ? await vRes.json() : {};
+            results.push({ ...c, is_active: !!sData.is_active, ballot_enabled: !!sData.ballot_enabled, total_votes: vData.total_votes || 0 });
+          } catch (e) {
+            results.push({ ...c, is_active: false, ballot_enabled: false, total_votes: 0 });
+          }
+        }
+        setHealthData(results);
+      } else if (role === 'officer') {
+        const statusRes = await fetch(`${API_URL}/verification/officer/status/${constituency_id}?t=${Date.now()}`, { cache: 'no-store', headers: authHeaders });
+        if (statusRes.ok) {
           const statusData = await statusRes.json();
           setCurrentStatus(statusData.is_active ? 'ACTIVE' : 'STOPPED');
           setBallotEnabled(statusData.ballot_enabled);
-          
-          const statsRes = await fetch(`${API_URL}/voting/stats?constituencyId=${constituency_id}&t=${Date.now()}`, { cache: 'no-store', headers: authHeaders });
+        }
+        const statsRes = await fetch(`${API_URL}/voting/stats?constituencyId=${constituency_id}&t=${Date.now()}`, { cache: 'no-store', headers: authHeaders });
+        if (statsRes.ok) {
           const statsData = await statsRes.json();
           setTotalVotes(statsData.total_votes || 0);
-
-          const histRes = await fetch(`${API_URL}/voting/session-history?constituencyId=${constituency_id}`, { headers: authHeaders });
-          const histData = await histRes.json();
-          setSessionHistory(histData || []);
-      } catch(e) {
-          setCurrentStatus('UNKNOWN');
+        }
+        const histRes = await fetch(`${API_URL}/voting/session-history?constituencyId=${constituency_id}`, { headers: authHeaders });
+        if (histRes.ok) setSessionHistory((await histRes.json()) || []);
       }
+    } catch(e) {
+      if (role === 'officer') setCurrentStatus('UNKNOWN');
+    } finally {
+      isPollingRef.current = false;
     }
   };
 
@@ -103,7 +114,12 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   useEffect(() => {
     loadStats();
     loadData();
-    const interval = setInterval(loadStats, 5000);
+    // Role-based polling intervals to avoid 429:
+    // admin: 30s (makes ~100 sequential calls per poll)
+    // superadmin: 10s (makes 1 call per poll)
+    // officer: 5s (makes 3 calls per poll)
+    const intervalMs = role === 'admin' ? 30000 : role === 'superadmin' ? 10000 : 5000;
+    const interval = setInterval(loadStats, intervalMs);
     return () => clearInterval(interval);
   }, [selectedConstituency, role]);
 
@@ -157,6 +173,16 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
     if (action === 'cancel_wipe') { setWipeConfirmation(false); setWipePin(''); return; }
 
     setOfficerLoading(true);
+
+    // ⚡ Optimistic UI update — show result instantly before API confirms
+    if (action === 'start' || action === 'resume') {
+      setCurrentStatus('ACTIVE');
+    } else if (action === 'stop') {
+      setCurrentStatus('STOPPED');
+      setBallotEnabled(false);
+    } else if (action === 'enable_ballot') {
+      setBallotEnabled(true);
+    }
     
     const sendAction = async (url, body) => {
       try {
@@ -168,9 +194,17 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
         if (!res.ok) {
            const err = await res.json().catch(()=>({error: 'Unknown API error'}));
            setOfficerError(err.error || `Server responded with ${res.status}`);
+           // Revert optimistic update on failure
+           if (action === 'start' || action === 'resume') setCurrentStatus('STOPPED');
+           else if (action === 'stop') setCurrentStatus('ACTIVE');
+           else if (action === 'enable_ballot') setBallotEnabled(false);
         }
       } catch(e) {
         setOfficerError(e.message || "Network request failed");
+        // Revert on network error too
+        if (action === 'start' || action === 'resume') setCurrentStatus('STOPPED');
+        else if (action === 'stop') setCurrentStatus('ACTIVE');
+        else if (action === 'enable_ballot') setBallotEnabled(false);
       }
     };
 

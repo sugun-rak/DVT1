@@ -6,6 +6,35 @@ import VoterFlow from './components/VoterFlow';
 import ManagementFlow from './components/ManagementFlow';
 import { API_URL } from './config';
 
+// ── Tab-isolated storage helpers (sessionStorage = per-tab, survives refresh, not shared across tabs) ──
+const ss = {
+  get: (k) => { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
+  set: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  remove: (k) => { try { sessionStorage.removeItem(k); } catch {} },
+};
+
+// Fire expiry notification via sendBeacon (survives page close) + fetch fallback
+function fireExpiryNotification(guestInfo, expiryMs) {
+  if (!guestInfo?.email || !guestInfo?.name) return;
+  const payload = JSON.stringify({
+    email: guestInfo.email,
+    name: guestInfo.name,
+    timezone: guestInfo.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezoneOffsetMinutes: guestInfo.timezoneOffsetMinutes ?? 0,
+    expiredAt: String(expiryMs || Date.now())
+  });
+  const url = `${API_URL}/verification/guest/expired-notify`;
+  // sendBeacon fires even on tab close — much more reliable than fetch in setTimeout
+  const beaconOk = navigator.sendBeacon
+    ? navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }))
+    : false;
+  if (!beaconOk) {
+    // Fallback: regular fetch
+    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload })
+      .catch(e => console.error('Expiry notify failed', e));
+  }
+}
+
 function App() {
   const { t, i18n } = useTranslation();
   
@@ -13,75 +42,60 @@ function App() {
   const [wakeTimeout, setWakeTimeout] = useState(false);
   const [factIndex, setFactIndex] = useState(0);
 
-  const [managementSession, setManagementSession] = useState(() => {
-    const saved = localStorage.getItem('dvt_session');
-    return saved ? JSON.parse(saved) : null;
-  });
-  
-  const [publicVotingMode, setPublicVotingMode] = useState(() => {
-    return localStorage.getItem('dvt_voting_mode') === 'true';
-  });
+  // ── Use sessionStorage so each tab is fully independent ──
+  const [managementSession, setManagementSession] = useState(() => ss.get('dvt_session'));
+  const [publicVotingMode, setPublicVotingMode] = useState(() => ss.get('dvt_voting_mode') === true);
   
   const [authView, setAuthView] = useState({ view: 'select', role: '', user: '' });
-  const [guestExpiring, setGuestExpiring] = useState(null); // { secondsLeft, isExpired }
+  const [guestExpiring, setGuestExpiring] = useState(null);
   const [showExpiredBanner, setShowExpiredBanner] = useState(false);
 
   useEffect(() => {
-    if (managementSession) {
-      localStorage.setItem('dvt_session', JSON.stringify(managementSession));
-    } else {
-      localStorage.removeItem('dvt_session');
-    }
+    if (managementSession) ss.set('dvt_session', managementSession);
+    else ss.remove('dvt_session');
   }, [managementSession]);
 
   useEffect(() => {
-    localStorage.setItem('dvt_voting_mode', publicVotingMode);
+    ss.set('dvt_voting_mode', publicVotingMode);
   }, [publicVotingMode]);
 
-  // ── Guest Session Auto-Logout ────────────────────────────────────────────
+  // ── Guest Session Auto-Logout (refresh-safe: derives timer from JWT exp, not from mount time) ──
   useEffect(() => {
     if (!managementSession?.token) { setGuestExpiring(null); return; }
 
-    // Decode JWT payload (no library needed — just base64 decode)
     let payload = null;
-    try {
-      payload = JSON.parse(atob(managementSession.token.split('.')[1]));
-    } catch (e) { return; }
+    try { payload = JSON.parse(atob(managementSession.token.split('.')[1])); } catch { return; }
 
-    // Only apply auto-logout for guest sessions (id starts with 'guest_')
+    // Only for guest sessions (id starts with 'guest_')
     if (!payload?.id?.startsWith('guest_')) { setGuestExpiring(null); return; }
 
     const expiryMs = payload.exp * 1000;
-    const guestInfo = JSON.parse(localStorage.getItem('dvt_guest_info') || '{}');
+    const guestInfo = ss.get('dvt_guest_info') || {};
 
-    // Countdown ticker
+    // ── Startup check: if session already expired (e.g. came back after long time) ──
+    if (Date.now() >= expiryMs) {
+      fireExpiryNotification(guestInfo, expiryMs);
+      ss.remove('dvt_guest_info');
+      setManagementSession(null);
+      setAuthView({ view: 'role_select', role: '', user: '' });
+      return;
+    }
+
+    // Live countdown ticker — uses real remaining time from JWT, not 15 min from mount
     const tickerId = setInterval(() => {
       const remaining = Math.max(0, Math.floor((expiryMs - Date.now()) / 1000));
       setGuestExpiring({ secondsLeft: remaining, isExpired: remaining === 0 });
     }, 1000);
 
-    // Auto-logout at exact expiry moment
+    // Auto-logout at exact JWT expiry (logoutDelay = ms remaining, not 15 min)
     const logoutDelay = Math.max(0, expiryMs - Date.now());
-    const logoutId = setTimeout(async () => {
+    const logoutId = setTimeout(() => {
       setShowExpiredBanner(true);
-      // Fire expiry notification email to the guest
-      try {
-        await fetch(`${API_URL}/verification/guest/expired-notify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: guestInfo.email,
-            name: guestInfo.name,
-            timezone: guestInfo.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-            expiredAt: String(expiryMs)
-          })
-        });
-      } catch (e) { console.error('Expiry notify failed', e); }
-
-      // Show banner for 4 seconds then logout
+      // sendBeacon + fetch fallback for reliable delivery
+      fireExpiryNotification(guestInfo, expiryMs);
       setTimeout(() => {
         setShowExpiredBanner(false);
-        localStorage.removeItem('dvt_guest_info');
+        ss.remove('dvt_guest_info');
         setManagementSession(null);
         setAuthView({ view: 'role_select', role: '', user: '' });
       }, 4000);
@@ -97,45 +111,33 @@ function App() {
       try {
         const [votingRes, authRes] = await Promise.allSettled([
           fetch(`${API_URL}/voting/constituencies`),
-          fetch(`${API_URL}/verification/officer/status/ping`)
+          fetch(`${API_URL}/verification/health`)
         ]);
         if (votingRes.status === 'fulfilled' && votingRes.value.ok && 
             authRes.status === 'fulfilled' && authRes.value.ok) {
           setIsWakingBackend(false);
           return;
         }
-      } catch (e) {
-        // Backend is likely sleeping and request failed
-      }
+      } catch (e) {}
       timeoutId = setTimeout(checkBackend, 8000);
     };
 
     const tId = setTimeout(() => setWakeTimeout(true), 8000);
     checkBackend();
-
-    return () => {
-      clearTimeout(tId);
-      clearTimeout(timeoutId);
-    };
+    return () => { clearTimeout(tId); clearTimeout(timeoutId); };
   }, []);
 
   // Engaging Loading Facts
   useEffect(() => {
     if (isWakingBackend) {
-      const interval = setInterval(() => {
-        setFactIndex(prev => (prev + 1) % 4);
-      }, 4000);
+      const interval = setInterval(() => setFactIndex(prev => (prev + 1) % 4), 4000);
       return () => clearInterval(interval);
     }
   }, [isWakingBackend]);
 
-  const toggleLanguage = () => {
-    i18n.changeLanguage(i18n.language === 'en' ? 'hi' : 'en');
-  };
+  const toggleLanguage = () => i18n.changeLanguage(i18n.language === 'en' ? 'hi' : 'en');
 
-  const handleManagementLogin = (data) => {
-    setManagementSession(data);
-  };
+  const handleManagementLogin = (data) => setManagementSession(data);
 
   const handleLogout = async (role) => {
     if (role === 'officer' && managementSession?.constituency_id) {
@@ -143,14 +145,9 @@ function App() {
         await fetch(`${API_URL}/verification/officer/toggle`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            constituency_id: managementSession.constituency_id,
-            is_active: false
-          })
+          body: JSON.stringify({ constituency_id: managementSession.constituency_id, is_active: false })
         });
-      } catch (e) {
-        console.error(e);
-      }
+      } catch (e) { console.error(e); }
     }
     setManagementSession(null);
     setAuthView({ view: 'role_select', role: '', user: '' });
@@ -158,7 +155,7 @@ function App() {
 
   const handleBack = (role, user) => {
     setManagementSession(null);
-    setAuthView({ view: 'login', role: role, user: user });
+    setAuthView({ view: 'login', role, user });
   };
 
   if (isWakingBackend) {
@@ -168,22 +165,18 @@ function App() {
       t('fact_3', 'Zero-knowledge proofs allow us to verify votes without revealing identities.'),
       t('fact_4', 'Establishing encrypted tunnels to distributed server clusters...')
     ];
-
     return (
       <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center', background: 'linear-gradient(to bottom, #0f172a, #020617)' }}>
         <div style={{ textAlign: 'center', maxWidth: '600px', padding: '2rem' }}>
           <div className="scanner-line" style={{ position: 'relative', width: '200px', height: '4px', background: 'rgba(56, 189, 248, 0.2)', margin: '0 auto 3rem auto', overflow: 'hidden', borderRadius: '2px' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: '#38bdf8', animation: 'slide 1.5s infinite ease-in-out' }}></div>
           </div>
-          
           <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem', background: 'linear-gradient(90deg, #38bdf8, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             {t('connecting_secure', 'Establishing Secure Connection...')}
           </h1>
-          
           <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', minHeight: '60px', transition: 'opacity 0.5s' }}>
             {loadingFacts[factIndex]}
           </p>
-
           {wakeTimeout && (
             <div className="animate-fade-in" style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px' }}>
               <p style={{ color: '#fcd34d', margin: 0, fontSize: '0.9rem' }}>
@@ -206,8 +199,7 @@ function App() {
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
           background: 'linear-gradient(90deg, #7f1d1d, #991b1b)',
           padding: '1rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: '1rem', borderBottom: '2px solid #ef4444',
-          animation: 'fadeInDown 0.4s ease'
+          gap: '1rem', borderBottom: '2px solid #ef4444'
         }}>
           <span style={{ fontSize: '1.5rem' }}>⏰</span>
           <div>
@@ -217,39 +209,24 @@ function App() {
         </div>
       )}
 
-      {/* Guest Session Live Countdown Banner (in Management Portal) */}
+      {/* Guest Session Live Countdown Banner */}
       {managementSession && guestExpiring !== null && (
         <div style={{
           padding: '0.4rem 1.5rem',
-          background: guestExpiring.secondsLeft > 120
-            ? 'rgba(34,197,94,0.12)'
-            : guestExpiring.secondsLeft > 60
-            ? 'rgba(245,158,11,0.15)'
-            : 'rgba(239,68,68,0.18)',
+          background: guestExpiring.secondsLeft > 120 ? 'rgba(34,197,94,0.12)' : guestExpiring.secondsLeft > 60 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.18)',
           borderBottom: `1px solid ${guestExpiring.secondsLeft > 120 ? 'rgba(34,197,94,0.3)' : guestExpiring.secondsLeft > 60 ? 'rgba(245,158,11,0.4)' : 'rgba(239,68,68,0.5)'}`,
           display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', fontSize: '0.85rem'
         }}>
           <span>🔑 Guest Demo Session</span>
-          <span style={{
-            fontFamily: 'monospace', fontWeight: 'bold', fontSize: '1rem',
-            color: guestExpiring.secondsLeft > 120 ? '#22c55e' : guestExpiring.secondsLeft > 60 ? '#f59e0b' : '#ef4444'
-          }}>
+          <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '1rem', color: guestExpiring.secondsLeft > 120 ? '#22c55e' : guestExpiring.secondsLeft > 60 ? '#f59e0b' : '#ef4444' }}>
             ⏱ {String(Math.floor(guestExpiring.secondsLeft / 60)).padStart(2,'0')}:{String(guestExpiring.secondsLeft % 60).padStart(2,'0')}
           </span>
           <span style={{ color: 'var(--text-secondary)' }}>remaining</span>
         </div>
       )}
 
-      <header style={{ 
-        display: 'flex', justifyContent: 'flex-end', alignItems: 'center', 
-        padding: '1rem 2rem', gap: '10px', background: 'rgba(0,0,0,0.5)', borderBottom: '1px solid rgba(255,255,255,0.1)'
-      }}>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="btn btn-secondary"
-          style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          title={t('refresh', 'Refresh App')}
-        >
+      <header style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '1rem 2rem', gap: '10px', background: 'rgba(0,0,0,0.5)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <button onClick={() => window.location.reload()} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }} title={t('refresh', 'Refresh App')}>
           <span>🔄</span> {t('refresh', 'Refresh')}
         </button>
         <button className="btn btn-secondary" onClick={toggleLanguage} style={{ padding: '0.5rem 1rem' }}>
@@ -259,29 +236,15 @@ function App() {
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
         {!managementSession && !publicVotingMode ? (
-          <AuthSelector 
-            onManagementLogin={handleManagementLogin} 
-            onEnterPublicVoting={() => setPublicVotingMode(true)} 
-            initialView={authView.view}
-            initialRole={authView.role}
-            initialUser={authView.user}
-          />
+          <AuthSelector onManagementLogin={handleManagementLogin} onEnterPublicVoting={() => setPublicVotingMode(true)} initialView={authView.view} initialRole={authView.role} initialUser={authView.user} />
         ) : publicVotingMode ? (
           <VoterFlow onExit={() => setPublicVotingMode(false)} />
         ) : (
-          <ManagementFlow 
-             managementSession={managementSession} 
-             onLogout={() => handleLogout(managementSession.role)} 
-             onBack={() => handleBack(managementSession.role, managementSession.username)}
-          />
+          <ManagementFlow managementSession={managementSession} onLogout={() => handleLogout(managementSession.role)} onBack={() => handleBack(managementSession.role, managementSession.username)} />
         )}
       </main>
       
-      {/* Footer */}
-      <footer style={{
-        padding: '1rem', textAlign: 'center', background: 'rgba(0,0,0,0.8)', borderTop: '1px solid rgba(255,255,255,0.05)',
-        color: 'var(--text-secondary)', fontSize: '0.9rem', zIndex: 10
-      }}>
+      <footer style={{ padding: '1rem', textAlign: 'center', background: 'rgba(0,0,0,0.8)', borderTop: '1px solid rgba(255,255,255,0.05)', color: 'var(--text-secondary)', fontSize: '0.9rem', zIndex: 10 }}>
         <p style={{ margin: 0 }}>&copy; {new Date().getFullYear()} SUGUN-RAKSHIT-DVS Digital Voting System. All rights reserved.</p>
         <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', opacity: 0.6 }}>Secure. Transparent. Verifiable.</p>
       </footer>
