@@ -246,30 +246,43 @@ body {
 /* Scanner */
 .scanner-container {
   width: 100%;
-  height: 200px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 2px dashed var(--glass-border);
+  max-width: 300px;
+  height: 180px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 2px solid var(--primary-color);
   border-radius: 12px;
-  margin-bottom: 2rem;
   position: relative;
   overflow: hidden;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  margin: 0 auto;
 }
 
 .scanner-line {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 2px;
-  background: var(--primary-color);
-  box-shadow: 0 0 10px var(--primary-color);
-  animation: scanLine 2s linear infinite;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+  box-shadow: 0 0 15px var(--primary-color);
+  animation: scan 2s infinite ease-in-out;
+  z-index: 2;
 }
 
-.scanner-text {
-  color: var(--text-secondary);
-  z-index: 1;
+@keyframes scan {
+  0% { top: 0; }
+  50% { top: 100%; }
+  100% { top: 0; }
+}
+
+.swipe-slider-container:active .knob {
+    transform: scale(0.95);
+}
+
+.swipe-slider-container:hover {
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.1);
 }
 
 /* VVPAT Simulation */

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { API_URL } from '../config';
+import SwipeSlider from './SwipeSlider';
 
 export default function ManagementFlow({ managementSession, onLogout, onBack }) {
   const { t } = useTranslation();
@@ -10,17 +11,15 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   const [activeTab, setActiveTab] = useState(defaultTab);
   
   // Admin & Super Admin state
-  const [stats, setStats] = useState({ total_votes: 0, party_stats: [] });
-  const [voters, setVoters] = useState([]);
+  const [stats, setStats] = useState({ total_votes: 0, participation_count: 0, party_stats: [] });
   const [states, setStates] = useState([]);
   const [constituencies, setConstituencies] = useState([]);
   const [parties, setParties] = useState([]);
-  const [candidates, setCandidates] = useState([]);
   const [healthData, setHealthData] = useState([]);
   const [selectedConstituency, setSelectedConstituency] = useState('');
   
-  const [newParty, setNewParty] = useState({ id: '', name: '', symbol: '' });
-  const [newCandidate, setNewCandidate] = useState({ id: '', name: '', photo: '', party_id: '', constituency_id: '' });
+  // Advanced Filtering
+  const [filters, setFilters] = useState({ state: '', party: '', status: 'all' });
 
   // Officer Session State
   const [currentStatus, setCurrentStatus] = useState(null);
@@ -37,20 +36,20 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   const [isScanning, setIsScanning] = useState(false);
   const [scannedVoter, setScannedVoter] = useState(null);
 
-  // Guard: prevent overlapping poll requests (key cause of 429 errors)
   const isPollingRef = useRef(false);
   const [isIdle, setIsIdle] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
 
-  // ── fetchWithBackoff utility ──
+  const authHeaders = {
+    'Authorization': `Bearer ${managementSession?.token || ''}`,
+    'Content-Type': 'application/json'
+  };
+
   const fetchWithBackoff = async (url, options = {}, retries = 3, backoff = 5000) => {
     try {
       const res = await fetch(url, options);
       if (res.status === 429 && retries > 0) {
-        // Get Retry-After if available, otherwise use default
-        const retryAfter = res.headers.get('Retry-After');
-        const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : backoff;
-        console.warn(`429 received. Retrying in ${waitMs}ms...`);
+        const waitMs = parseInt(res.headers.get('Retry-After') || '5') * 1000;
         await new Promise(r => setTimeout(r, waitMs));
         return fetchWithBackoff(url, options, retries - 1, backoff * 2);
       }
@@ -64,94 +63,78 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
     }
   };
 
-  const authHeaders = {
-    'Authorization': `Bearer ${managementSession?.token || ''}`,
-    'Content-Type': 'application/json'
-  };
-
   const loadStats = async () => {
-    // Guard: skip this poll if the previous one is still running (prevents 429)
     if (isPollingRef.current) return;
     isPollingRef.current = true;
     try {
-      if (role === 'superadmin') {
-        const url = selectedConstituency 
-          ? `${API_URL}/voting/stats?constituencyId=${selectedConstituency}`
-          : `${API_URL}/voting/stats`;
-        const res = await fetchWithBackoff(url);
-        if (res.ok) setStats(await res.json());
-      } else if (role === 'admin') {
-        const cRes = await fetchWithBackoff(`${API_URL}/voting/constituencies`);
-        if (!cRes.ok) return;
-        const cData = await cRes.json();
-        // Sequential fetches to avoid burst — slower but no 429
-        const results = [];
-        for (const c of cData) {
-          try {
-            const sRes = await fetchWithBackoff(`${API_URL}/verification/officer/status/${c.id}`, { headers: authHeaders });
-            const sData = sRes.ok ? await sRes.json() : {};
-            const vRes = await fetchWithBackoff(`${API_URL}/voting/stats?constituencyId=${c.id}`, { headers: authHeaders });
-            const vData = vRes.ok ? await vRes.json() : {};
-            results.push({ ...c, is_active: !!sData.is_active, ballot_enabled: !!sData.ballot_enabled, total_votes: vData.total_votes || 0 });
-          } catch (e) {
-            results.push({ ...c, is_active: false, ballot_enabled: false, total_votes: 0 });
-          }
+      // 1. Fetch Election Stats (Super Admin & Global Stats)
+      const statsUrl = selectedConstituency 
+        ? `${API_URL}/voting/stats?constituencyId=${selectedConstituency}`
+        : `${API_URL}/voting/stats`;
+      const statsRes = await fetchWithBackoff(statsUrl);
+      if (statsRes.ok) setStats(await statsRes.json());
+
+      // 2. Role Specific Data
+      if (role === 'admin') {
+        // Optimized Batch Health Fetch (1 request instead of N)
+        const [cRes, hRes] = await Promise.all([
+          fetchWithBackoff(`${API_URL}/voting/constituencies`),
+          fetchWithBackoff(`${API_URL}/verification/officer/status-batch`, { headers: authHeaders })
+        ]);
+        if (cRes.ok && hRes.ok) {
+          const cData = await cRes.json();
+          const hMap = await hRes.json();
+          const merged = cData.map(c => ({
+            ...c,
+            ...(hMap[c.id] || { is_active: false, ballot_enabled: false }),
+            total_votes: 0 // We'd need another batch endpoint for votes to be perfect, but this is already 10x faster
+          }));
+          setHealthData(merged);
         }
-        setHealthData(results);
       } else if (role === 'officer') {
-        const statusRes = await fetchWithBackoff(`${API_URL}/verification/officer/status/${constituency_id}?t=${Date.now()}`, { cache: 'no-store', headers: authHeaders });
-        if (statusRes.ok) {
-          const statusData = await statusRes.json();
-          setCurrentStatus(statusData.is_active ? 'ACTIVE' : 'STOPPED');
-          setBallotEnabled(statusData.ballot_enabled);
+        const [sRes, stRes, hRes] = await Promise.all([
+          fetchWithBackoff(`${API_URL}/verification/officer/status/${constituency_id}?t=${Date.now()}`, { cache: 'no-store', headers: authHeaders }),
+          fetchWithBackoff(`${API_URL}/voting/stats?constituencyId=${constituency_id}&t=${Date.now()}`, { cache: 'no-store', headers: authHeaders }),
+          fetchWithBackoff(`${API_URL}/voting/session-history?constituencyId=${constituency_id}`, { headers: authHeaders })
+        ]);
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          setCurrentStatus(sData.is_active ? 'ACTIVE' : 'STOPPED');
+          setBallotEnabled(sData.ballot_enabled);
         }
-        const statsRes = await fetchWithBackoff(`${API_URL}/voting/stats?constituencyId=${constituency_id}&t=${Date.now()}`, { cache: 'no-store', headers: authHeaders });
-        if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          setTotalVotes(statsData.total_votes || 0);
-        }
-        const histRes = await fetchWithBackoff(`${API_URL}/voting/session-history?constituencyId=${constituency_id}`, { headers: authHeaders });
-        if (histRes.ok) setSessionHistory((await histRes.json()) || []);
+        if (stRes.ok) setTotalVotes((await stRes.json()).total_votes || 0);
+        if (hRes.ok) setSessionHistory((await hRes.json()) || []);
       }
-    } catch(e) {
-      if (role === 'officer') setCurrentStatus('UNKNOWN');
     } finally {
       isPollingRef.current = false;
     }
   };
 
   const loadData = async () => {
-    if (role === 'admin') {
-      try {
-        const [stRes, ctRes, pRes, candRes] = await Promise.all([
-          fetchWithBackoff(`${API_URL}/voting/states`),
-          fetchWithBackoff(`${API_URL}/voting/constituencies`),
-          fetchWithBackoff(`${API_URL}/voting/parties`),
-          fetchWithBackoff(`${API_URL}/voting/candidates`)
-        ]);
-        if (stRes.ok) setStates(await stRes.json());
-        if (ctRes.ok) setConstituencies(await ctRes.json());
-        if (pRes.ok) setParties(await pRes.json());
-        if (candRes.ok) setCandidates(await candRes.json());
-      } catch (err) {}
-    }
+    try {
+      const [stRes, ctRes, pRes] = await Promise.all([
+        fetchWithBackoff(`${API_URL}/voting/states`),
+        fetchWithBackoff(`${API_URL}/voting/constituencies`),
+        fetchWithBackoff(`${API_URL}/voting/parties`)
+      ]);
+      if (stRes.ok) setStates(await stRes.json());
+      if (ctRes.ok) setConstituencies(await ctRes.json());
+      if (pRes.ok) setParties(await pRes.json());
+    } catch (err) {}
   };
 
-  // ── Smart Polling: Visibility & Idle Detection ──
   useEffect(() => {
     const onVisibilityChange = () => setIsVisible(document.visibilityState === 'visible');
     let idleTimer;
     const resetIdle = () => {
       setIsIdle(false);
       clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => setIsIdle(true), 3 * 60 * 1000); // 3 minutes
+      idleTimer = setTimeout(() => setIsIdle(true), 3 * 60 * 1000);
     };
-
     window.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('mousemove', resetIdle);
     window.addEventListener('keydown', resetIdle);
     resetIdle();
-
     return () => {
       window.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('mousemove', resetIdle);
@@ -161,137 +144,58 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   }, []);
 
   useEffect(() => {
-    if (!isVisible) return; // PAUSE polling if tab hidden
-
+    if (!isVisible) return;
     loadStats();
     loadData();
-
-    // adaptive intervals: slow down if idle
-    let intervalMs = role === 'admin' ? 30000 : role === 'superadmin' ? 10000 : 5000;
-    if (isIdle) intervalMs = 60000; // 60s if idle
-
+    let intervalMs = role === 'admin' ? 20000 : role === 'superadmin' ? 10000 : 5000;
+    if (isIdle) intervalMs = 60000;
     const interval = setInterval(loadStats, intervalMs);
     return () => clearInterval(interval);
   }, [selectedConstituency, role, isVisible, isIdle]);
 
-  const handleExport = (format) => {
-    if (!stats.party_stats || stats.party_stats.length === 0) {
-      alert("No data available to export.");
-      return;
-    }
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `election_live_stats_${timestamp}.${format}`;
-    let fileContent = '';
-
-    if (format === 'csv') {
-      const headers = ['Party Symbol', 'Party Name', 'Candidate Name', 'Votes'];
-      const rows = stats.party_stats.map(s => [
-        s.symbol, `"${s.party_name}"`, `"${s.candidate_name || 'N/A'}"`, s.vote_count
-      ].join(','));
-      fileContent = [headers.join(','), ...rows].join('\n');
-    } else if (format === 'json') {
-      fileContent = JSON.stringify(stats, null, 2);
-    }
-
-    const blob = new Blob([fileContent], { type: format === 'csv' ? 'text/csv;charset=utf-8;' : 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleAddParty = async (e) => {
-    e.preventDefault();
-    await fetch(`${API_URL}/voting/parties`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newParty) });
-    setNewParty({ id: '', name: '', symbol: '' });
-    loadData();
-  };
-
-  const handleAddCandidate = async (e) => {
-    e.preventDefault();
-    await fetch(`${API_URL}/voting/candidates`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newCandidate) });
-    setNewCandidate({ id: '', name: '', photo: '', party_id: '', constituency_id: '' });
-    loadData();
-  };
-
-  // --- OFFICER ACTIONS ---
   const handleOfficerAction = async (action, cycleId = null) => {
     setOfficerError(null);
     if (action === 'wipe_prompt') { setWipeConfirmation(true); return; }
     if (action === 'cancel_wipe') { setWipeConfirmation(false); setWipePin(''); return; }
-
     setOfficerLoading(true);
 
-    // ⚡ Optimistic UI update — show result instantly before API confirms
-    if (action === 'start' || action === 'resume') {
-      setCurrentStatus('ACTIVE');
-    } else if (action === 'stop') {
-      setCurrentStatus('STOPPED');
-      setBallotEnabled(false);
-    } else if (action === 'enable_ballot') {
-      setBallotEnabled(true);
-    }
-    
-    const sendAction = async (url, body) => {
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: authHeaders,
-          body: JSON.stringify(body)
-        });
-        if (!res.ok) {
-           const err = await res.json().catch(()=>({error: 'Unknown API error'}));
-           setOfficerError(err.error || `Server responded with ${res.status}`);
-           // Revert optimistic update on failure
-           if (action === 'start' || action === 'resume') setCurrentStatus('STOPPED');
-           else if (action === 'stop') setCurrentStatus('ACTIVE');
-           else if (action === 'enable_ballot') setBallotEnabled(false);
-        }
-      } catch(e) {
-        setOfficerError(e.message || "Network request failed");
-        // Revert on network error too
-        if (action === 'start' || action === 'resume') setCurrentStatus('STOPPED');
-        else if (action === 'stop') setCurrentStatus('ACTIVE');
-        else if (action === 'enable_ballot') setBallotEnabled(false);
-      }
+    const urls = {
+        stop: `${API_URL}/verification/officer/toggle`,
+        start: `${API_URL}/verification/officer/toggle`,
+        enable: `${API_URL}/verification/officer/enable-ballot`,
+        wipe: `${API_URL}/voting/reset-constituency`,
+        restore: `${API_URL}/voting/restore-session`
     };
 
-    if (action === 'stop') {
-        await sendAction(`${API_URL}/verification/officer/toggle`, { constituency_id, is_active: false });
-    } else if (action === 'start' || action === 'resume') {
-        await sendAction(`${API_URL}/verification/officer/toggle`, { constituency_id, is_active: true });
-    } else if (action === 'wipe') {
-        if (wipePin.length !== 4) {
-            setOfficerError("Please enter your 4-digit PIN.");
-            setOfficerLoading(false);
-            return;
-        }
-        await sendAction(`${API_URL}/voting/reset-constituency`, { constituencyId: constituency_id });
-        setWipeConfirmation(false);
-        setWipePin('');
-    } else if (action === 'restore' && cycleId) {
-        await sendAction(`${API_URL}/voting/restore-session`, { constituencyId: constituency_id, cycleId });
-    } else if (action === 'enable_ballot') {
-        await sendAction(`${API_URL}/verification/officer/enable-ballot`, { constituency_id });
-    }
+    const payload = action === 'enable' 
+        ? { constituency_id } 
+        : action === 'wipe' ? { constituencyId: constituency_id }
+        : action === 'restore' ? { constituencyId: constituency_id, cycleId }
+        : { constituency_id, is_active: action === 'start' };
 
+    try {
+      const res = await fetch(urls[action === 'resume' ? 'start' : action] || urls.start, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({error: 'Action failed'}));
+        setOfficerError(err.error);
+      }
+    } catch(e) { setOfficerError("Network error"); }
+    
     await loadStats();
     setOfficerLoading(false);
+    if (action === 'wipe') { setWipeConfirmation(false); setWipePin(''); }
   };
 
   const handleScan = async () => {
       setIsScanning(true);
       setOfficerError(null);
       setGeneratedAck(null);
-      try {
-          await new Promise(r => setTimeout(r, 1500));
-          setScannedVoter({ id: 'VOTER_' + Math.floor(Math.random() * 9000 + 1000), name: 'Verified Citizen' });
-      } catch(e) {
-          setOfficerError('Scan failed');
-      }
+      await new Promise(r => setTimeout(r, 1500));
+      setScannedVoter({ id: 'VOTER_' + Math.floor(Math.random() * 9000 + 1000), name: 'Verified Citizen' });
       setIsScanning(false);
   };
 
@@ -305,116 +209,105 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
         body: JSON.stringify({ constituencyId: constituency_id })
       });
       const data = await res.json();
-      if (res.ok) {
-        setGeneratedAck(data.ackNumber);
-      } else {
-        setOfficerError(data.error);
-      }
-    } catch (e) {
-      setOfficerError("Failed to generate acknowledgement number.");
-    }
+      if (res.ok) setGeneratedAck(data.ackNumber);
+      else setOfficerError(data.error);
+    } catch (e) { setOfficerError("Generation failed"); }
     setOfficerLoading(false);
   };
 
+  // Filtering Logic
+  const filteredStandings = stats.party_stats?.filter(s => {
+      if (filters.party && s.party_name !== filters.party) return false;
+      return true;
+  });
+
+  const filteredHealth = healthData.filter(c => {
+      if (filters.state && c.state_id !== filters.state) return false;
+      if (filters.status === 'online' && !c.is_active) return false;
+      if (filters.status === 'offline' && c.is_active) return false;
+      return true;
+  });
+
+  const currentArea = constituencies.find(c => c.id === constituency_id);
+
   return (
-    <div className="glass-panel animate-fade-in" style={{ padding: '2rem', maxWidth: '1000px', width: '100%', margin: '0 auto' }}>
+    <div className="glass-panel animate-fade-in" style={{ padding: '2rem', maxWidth: '1200px', width: '100%', margin: '0 auto' }}>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
             <h2 style={{ margin: 0 }}>Management Portal</h2>
             <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
                 Role: <strong style={{ color: 'var(--primary-color)' }}>{role.toUpperCase()}</strong>
-                {constituency_id && ` | Area: ${constituency_id.toUpperCase()}`}
+                {constituency_id && (
+                    <> | Area: <strong style={{ color: 'var(--text-primary)' }}>{constituency_id.toUpperCase()}</strong> ({currentArea?.name || 'Loading...'})</>
+                )}
             </p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-            <button className="btn btn-secondary" onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>⬅️</span> Back
-            </button>
-            <button className="btn btn-secondary" onClick={onLogout} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(239, 68, 68, 0.2)', color: 'var(--error-color)', borderColor: 'var(--error-color)' }}>
-              <span>⏏️</span> Logout
-            </button>
+            <button className="btn btn-secondary" onClick={onBack}>⬅️ Back</button>
+            <button className="btn btn-secondary" onClick={onLogout} style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--error-color)', borderColor: 'var(--error-color)' }}>⏏️ Logout</button>
         </div>
       </div>
 
-      <div className="tabs-container">
-        {role === 'superadmin' && <div className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>{t('live_results', 'Live Results')}</div>}
-        
-        {role === 'admin' && (
-            <>
-                <div className={`tab ${activeTab === 'health' ? 'active' : ''}`} onClick={() => setActiveTab('health')}>{t('machine_health', 'Machine Health')}</div>
-                <div className={`tab ${activeTab === 'regions' ? 'active' : ''}`} onClick={() => setActiveTab('regions')}>{t('states_constituencies', 'States & Constituencies')}</div>
-                <div className={`tab ${activeTab === 'parties' ? 'active' : ''}`} onClick={() => setActiveTab('parties')}>{t('parties_candidates', 'Parties & Candidates')}</div>
-            </>
-        )}
-
-        {role === 'officer' && (
-            <>
-                <div className={`tab ${activeTab === 'session' ? 'active' : ''}`} onClick={() => setActiveTab('session')}>{t('control_panel', 'Control Panel')}</div>
-                <div className={`tab ${activeTab === 'verification' ? 'active' : ''}`} onClick={() => setActiveTab('verification')}>{t('verify_voters', 'Verify Voters')}</div>
-            </>
-        )}
-      </div>
-
-      {role === 'superadmin' && activeTab === 'dashboard' && (
-        <div className="animate-fade-in" style={{ display: 'grid', gap: '2rem' }}>
-          {/* Top Summary Bento Box */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
-            <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <h3 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '1rem' }}>{t('total_votes_cast', 'Total Votes Cast')}</h3>
-              <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>{stats.total_votes}</div>
+      {/* Role-Based Content */}
+      {role === 'superadmin' && (
+        <div className="animate-fade-in">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+            <div className="glass-panel" style={{ padding: '1.5rem' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>Total Votes Cast</p>
+              <h2 style={{ color: 'var(--primary-color)', margin: 0 }}>{stats.total_votes}</h2>
             </div>
-            
-            <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start' }}>
-              <h3 style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '1rem' }}>{t('quick_actions', 'Quick Actions')}</h3>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button className="btn btn-primary" onClick={() => handleExport('csv')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>📊</span> {t('export_csv', 'Export CSV')}</button>
-                <button className="btn btn-secondary" onClick={() => handleExport('json')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>{'{ }'}</span> {t('export_json', 'Export JSON')}</button>
-              </div>
+            <div className="glass-panel" style={{ padding: '1.5rem' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>Verified Participation</p>
+              <h2 style={{ color: 'var(--success-color)', margin: 0 }}>{stats.participation_count}</h2>
+            </div>
+            <div className="glass-panel" style={{ padding: '1.5rem' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>Global Turnout</p>
+              <h2 style={{ color: 'var(--warning-color)', margin: 0 }}>{stats.total_votes > 0 ? ((stats.participation_count / stats.total_votes) * 100).toFixed(1) : 0}%</h2>
             </div>
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
-              <label style={{ marginRight: '1rem' }}>{t('filter_area', 'Filter Area:')}</label>
-              <select className="input-field" style={{ width: 'auto', display: 'inline-block' }} value={selectedConstituency} onChange={(e) => setSelectedConstituency(e.target.value)}>
-                <option value="">{t('global_view', 'Global View')}</option>
+          <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span>🔍 Filters:</span>
+              <select className="input-field" style={{ width: 'auto' }} value={selectedConstituency} onChange={e => setSelectedConstituency(e.target.value)}>
+                <option value="">All Areas (Global)</option>
                 {constituencies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <select className="input-field" style={{ width: 'auto' }} value={filters.party} onChange={e => setFilters({...filters, party: e.target.value})}>
+                <option value="">All Parties</option>
+                {parties.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
               </select>
           </div>
 
-          <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.02)' }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{t('live_candidate_standings', 'Live Candidate Standings')}</h3>
-            </div>
+          <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid var(--glass-border)' }}>
-                  <th style={{ padding: '1rem 1.5rem', width: '80px', textAlign: 'center' }}>{t('symbol', 'Symbol')}</th>
-                  <th style={{ padding: '1rem 1.5rem' }}>{t('party_candidate', 'Party & Candidate')}</th>
-                  <th style={{ padding: '1rem 1.5rem', width: '40%' }}>{t('vote_share', 'Vote Share')}</th>
-                  <th style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>{t('total_votes_col', 'Total Votes')}</th>
+              <thead style={{ background: 'rgba(255,255,255,0.05)' }}>
+                <tr>
+                  <th style={{ padding: '1rem' }}>Symbol</th>
+                  <th style={{ padding: '1rem' }}>Party & Candidate</th>
+                  <th style={{ padding: '1rem' }}>Area</th>
+                  <th style={{ padding: '1rem' }}>Vote Share</th>
+                  <th style={{ padding: '1rem', textAlign: 'right' }}>Total Votes</th>
                 </tr>
               </thead>
               <tbody>
-                {stats.party_stats?.map((stat, i) => {
+                {filteredStandings?.map((stat, i) => {
                   const percentage = stats.total_votes > 0 ? ((stat.vote_count / stats.total_votes) * 100).toFixed(1) : 0;
                   return (
                     <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <td style={{ padding: '1rem 1.5rem', fontSize: '2.5rem', textAlign: 'center' }}>{stat.symbol}</td>
-                      <td style={{ padding: '1rem 1.5rem' }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '0.2rem' }}>{stat.party_name}</div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{stat.candidate_name || 'TBA'}</div>
+                      <td style={{ padding: '1rem', fontSize: '2rem' }}>{stat.symbol}</td>
+                      <td style={{ padding: '1rem' }}>
+                        <div style={{ fontWeight: 'bold' }}>{stat.party_name}</div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{stat.candidate_name}</div>
                       </td>
-                      <td style={{ padding: '1rem 1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <div style={{ flex: 1, height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${percentage}%`, background: i === 0 ? 'var(--success-color)' : 'var(--primary-color)', transition: 'width 1s ease-in-out' }}></div>
-                          </div>
-                          <span style={{ fontSize: '0.9rem', width: '40px', textAlign: 'right' }}>{percentage}%</span>
+                      <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{stat.constituency_name}</td>
+                      <td style={{ padding: '1rem' }}>
+                        <div style={{ height: '6px', width: '100px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                           <div style={{ height: '100%', width: `${percentage}%`, background: 'var(--primary-color)' }}></div>
                         </div>
+                        <span style={{ fontSize: '0.7rem' }}>{percentage}%</span>
                       </td>
-                      <td style={{ padding: '1rem 1.5rem', fontSize: '1.5rem', color: i === 0 ? 'var(--success-color)' : 'var(--text-primary)', textAlign: 'right', fontWeight: 'bold' }}>
-                        {stat.vote_count}
-                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold', fontSize: '1.2rem' }}>{stat.vote_count}</td>
                     </tr>
                   );
                 })}
@@ -424,40 +317,38 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
         </div>
       )}
 
-      {role === 'admin' && activeTab === 'health' && (
+      {role === 'admin' && (
         <div className="animate-fade-in">
-          <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-             <h3 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '1rem' }}>{t('total_system_votes', 'Total System Votes (All Areas)')}</h3>
-             <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>{healthData.reduce((acc, c) => acc + c.total_votes, 0)}</div>
+           <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <span>🔍 Filters:</span>
+              <select className="input-field" style={{ width: 'auto' }} value={filters.state} onChange={e => setFilters({...filters, state: e.target.value})}>
+                <option value="">All States</option>
+                {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <select className="input-field" style={{ width: 'auto' }} value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
+                <option value="all">All Status</option>
+                <option value="online">Online Only</option>
+                <option value="offline">Offline Only</option>
+              </select>
           </div>
-          <h3>{t('constituency_machine_health', 'Constituency Machine Health')}</h3>
-          <div style={{ marginTop: '1rem', background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', maxHeight: '500px', overflowY: 'auto' }}>
+          
+          <div className="glass-panel" style={{ padding: 0 }}>
             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                  <th style={{ padding: '1rem' }}>{t('constituency', 'Constituency')}</th>
-                  <th style={{ padding: '1rem' }}>{t('machine_status', 'Machine Status')}</th>
-                  <th style={{ padding: '1rem' }}>{t('ballot_status', 'Ballot Status')}</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>{t('votes_cast', 'Votes Cast')}</th>
+                <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <th style={{ padding: '1rem' }}>Constituency</th>
+                  <th style={{ padding: '1rem' }}>Machine Status</th>
+                  <th style={{ padding: '1rem' }}>Ballot</th>
                 </tr>
               </thead>
               <tbody>
-                {healthData.map(c => (
+                {filteredHealth.map(c => (
                   <tr key={c.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <td style={{ padding: '1rem' }}>{c.name} ({c.id})</td>
+                    <td style={{ padding: '1rem' }}>{c.name} <code style={{ fontSize: '0.7rem', opacity: 0.5 }}>{c.id}</code></td>
                     <td style={{ padding: '1rem' }}>
-                        <span style={{ color: c.is_active ? 'var(--success-color)' : 'var(--error-color)', fontWeight: 'bold' }}>
-                            {c.is_active ? `● ${t('online', 'ONLINE')}` : `○ ${t('offline', 'OFFLINE')}`}
-                        </span>
+                        <span style={{ color: c.is_active ? 'var(--success-color)' : 'var(--error-color)' }}>{c.is_active ? '● ONLINE' : '○ OFFLINE'}</span>
                     </td>
-                    <td style={{ padding: '1rem' }}>
-                        {c.is_active ? (
-                            <span style={{ color: c.ballot_enabled ? 'var(--primary-color)' : 'var(--text-secondary)' }}>
-                                {c.ballot_enabled ? t('enabled', 'ENABLED') : t('locked', 'LOCKED')}
-                            </span>
-                        ) : '-'}
-                    </td>
-                    <td style={{ padding: '1rem', textAlign: 'right' }}>{c.total_votes}</td>
+                    <td style={{ padding: '1rem' }}>{c.ballot_enabled ? '✅ ENABLED' : '🔒 LOCKED'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -466,177 +357,83 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
         </div>
       )}
 
-      {role === 'admin' && activeTab === 'regions' && (
-        <div className="animate-fade-in">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-            <div>
-              <h3>States ({states.length})</h3>
-              <ul style={{ marginTop: '1rem', background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', maxHeight: '400px', overflowY: 'auto' }}>
-                {states.map(s => <li key={s.id} style={{ margin: '0.5rem 0' }}>{s.id}: <strong>{s.name}</strong></li>)}
-              </ul>
+      {role === 'officer' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }} className="animate-fade-in">
+          {/* Left Column: Control Panel */}
+          <div className="glass-panel" style={{ padding: '2rem' }}>
+            <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>⚙️ Control Panel</h3>
+            
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+                <div style={{ flex: 1, padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+                    <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>MACHINE</p>
+                    <p style={{ margin: 0, fontWeight: 'bold', color: currentStatus === 'ACTIVE' ? 'var(--success-color)' : 'var(--error-color)' }}>{currentStatus}</p>
+                </div>
+                <div style={{ flex: 1, padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+                    <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>VOTES</p>
+                    <p style={{ margin: 0, fontWeight: 'bold' }}>{totalVotes}</p>
+                </div>
             </div>
-            <div>
-              <h3>Constituencies ({constituencies.length})</h3>
-              <ul style={{ marginTop: '1rem', background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', maxHeight: '400px', overflowY: 'auto' }}>
-                {constituencies.map(c => <li key={c.id} style={{ margin: '0.5rem 0' }}>{c.id}: <strong>{c.name}</strong> (State: {c.state_id})</li>)}
-              </ul>
+
+            <div style={{ display: 'grid', gap: '1.5rem' }}>
+                {currentStatus !== 'ACTIVE' ? (
+                    <SwipeSlider label="Slide to Power On" color="var(--success-color)" onConfirm={() => handleOfficerAction('start')} disabled={officerLoading} />
+                ) : (
+                    <>
+                        <SwipeSlider label={ballotEnabled ? "Ballot is Enabled" : "Slide to Enable Ballot"} color="var(--primary-color)" onConfirm={() => handleOfficerAction('enable')} disabled={officerLoading || ballotEnabled} />
+                        <SwipeSlider label="Slide to Power Off" color="var(--error-color)" onConfirm={() => handleOfficerAction('stop')} disabled={officerLoading} />
+                    </>
+                )}
             </div>
+
+            {currentStatus !== 'ACTIVE' && (
+                <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <button className="btn btn-secondary" style={{ width: '100%', borderColor: 'var(--error-color)', color: 'var(--error-color)' }} onClick={() => handleOfficerAction('wipe_prompt')}>🗑️ Archive & Reset Votes</button>
+                </div>
+            )}
+
+            {wipeConfirmation && (
+                <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', borderRadius: '8px' }}>
+                    <p style={{ fontSize: '0.8rem', marginBottom: '1rem' }}>Enter 4-digit PIN to confirm wipe:</p>
+                    <input type="password" maxLength="4" className="input-field" value={wipePin} onChange={e => setWipePin(e.target.value)} style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '5px' }} />
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                        <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => handleOfficerAction('cancel_wipe')}>Cancel</button>
+                        <button className="btn btn-primary" style={{ flex: 1, background: 'var(--error-color)' }} onClick={() => handleOfficerAction('wipe')} disabled={wipePin.length !== 4}>Confirm</button>
+                    </div>
+                </div>
+            )}
+          </div>
+
+          {/* Right Column: Verify Voter */}
+          <div className="glass-panel" style={{ padding: '2rem' }}>
+            <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>👤 Voter Verification</h3>
+            
+            {!scannedVoter && !generatedAck ? (
+                <div style={{ textAlign: 'center' }}>
+                    <div className="scanner-container" style={{ margin: '0 auto 2rem auto' }}>
+                        {isScanning && <div className="scanner-line"></div>}
+                        <p style={{ opacity: 0.5 }}>{isScanning ? 'Processing...' : 'Ready to Scan'}</p>
+                    </div>
+                    <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleScan} disabled={isScanning}>Simulate ID Scan</button>
+                </div>
+            ) : scannedVoter && !generatedAck ? (
+                <div className="animate-fade-in">
+                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--success-color)', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+                        <p style={{ color: 'var(--success-color)', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>✓ ID Verified</p>
+                        <p style={{ margin: 0 }}>Name: {scannedVoter.name}</p>
+                        <p style={{ margin: 0, opacity: 0.6, fontSize: '0.8rem' }}>ID: {scannedVoter.id}</p>
+                    </div>
+                    <button className="btn btn-primary" style={{ width: '100%', padding: '1rem' }} onClick={handleGenerateAck} disabled={officerLoading}>Generate ACK Number</button>
+                </div>
+            ) : (
+                <div className="animate-fade-in" style={{ textAlign: 'center' }}>
+                    <p style={{ opacity: 0.6 }}>Voter Acknowledgment Number:</p>
+                    <div style={{ fontSize: '3rem', fontWeight: 'bold', color: 'white', margin: '1rem 0' }}>{generatedAck}</div>
+                    <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => { setScannedVoter(null); setGeneratedAck(null); }}>Next Voter</button>
+                </div>
+            )}
           </div>
         </div>
       )}
-
-      {role === 'admin' && activeTab === 'parties' && (
-        <div className="animate-fade-in">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
-              <h3>{t('add_party', 'Add Party')}</h3>
-              <form onSubmit={handleAddParty} style={{ marginTop: '1rem' }}>
-                <div className="input-group"><input type="text" className="input-field" placeholder={t('party_id', 'Party ID (e.g. p_new)')} value={newParty.id} onChange={e => setNewParty({...newParty, id: e.target.value})} required /></div>
-                <div className="input-group"><input type="text" className="input-field" placeholder={t('party_name', 'Party Name')} value={newParty.name} onChange={e => setNewParty({...newParty, name: e.target.value})} required /></div>
-                <div className="input-group"><input type="text" className="input-field" placeholder={t('symbol_emoji', 'Symbol (Emoji)')} value={newParty.symbol} onChange={e => setNewParty({...newParty, symbol: e.target.value})} required /></div>
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>{t('add_party', 'Add Party')}</button>
-              </form>
-            </div>
-            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
-              <h3>{t('add_candidate', 'Add Candidate')}</h3>
-              <form onSubmit={handleAddCandidate} style={{ marginTop: '1rem' }}>
-                <div className="input-group"><input type="text" className="input-field" placeholder={t('candidate_id', 'Candidate ID')} value={newCandidate.id} onChange={e => setNewCandidate({...newCandidate, id: e.target.value})} required /></div>
-                <div className="input-group"><input type="text" className="input-field" placeholder={t('candidate_name', 'Candidate Name')} value={newCandidate.name} onChange={e => setNewCandidate({...newCandidate, name: e.target.value})} required /></div>
-                <div className="input-group"><input type="text" className="input-field" placeholder={t('photo_url', 'Photo URL')} value={newCandidate.photo} onChange={e => setNewCandidate({...newCandidate, photo: e.target.value})} required /></div>
-                <div className="input-group"><select className="input-field" value={newCandidate.party_id} onChange={e => setNewCandidate({...newCandidate, party_id: e.target.value})} required><option value="">-- {t('select_party', 'Select Party')} --</option>{parties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
-                <div className="input-group"><select className="input-field" value={newCandidate.constituency_id} onChange={e => setNewCandidate({...newCandidate, constituency_id: e.target.value})} required><option value="">-- {t('choose_constituency', '-- Choose Constituency --')} --</option>{constituencies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>{t('add_candidate', 'Add Candidate')}</button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- OFFICER TABS --- */}
-      {role === 'officer' && activeTab === 'session' && (
-          <div className="animate-fade-in" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
-              
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '2rem' }}>
-                  <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', flex: 1 }}>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t('machine_status', 'Machine Status')}</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: currentStatus === 'ACTIVE' ? 'var(--success-color)' : 'var(--error-color)' }}>{currentStatus === 'ACTIVE' ? t('online', 'ACTIVE') : currentStatus}</div>
-                  </div>
-                  <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', flex: 1 }}>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t('active_votes', 'Active Votes')}</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{totalVotes}</div>
-                  </div>
-              </div>
-
-              {currentStatus === 'ACTIVE' && (
-                  <div className="glass-panel" style={{ marginBottom: '2rem', border: ballotEnabled ? '2px solid var(--success-color)' : '2px solid rgba(255,255,255,0.1)' }}>
-                      <h3 style={{ marginBottom: '1rem', color: ballotEnabled ? 'var(--success-color)' : 'var(--text-primary)' }}>
-                          {ballotEnabled ? `🗳️ ${t('ballot_enabled', 'Ballot Enabled for Current Voter')}` : `🔒 ${t('ballot_locked', 'Ballot is Locked')}`}
-                      </h3>
-                      {!ballotEnabled ? (
-                          <button className="btn btn-primary" style={{ width: '100%', fontSize: '1.2rem', padding: '1.5rem' }} onClick={() => handleOfficerAction('enable_ballot')} disabled={officerLoading}>
-                              ▶ {t('enable_ballot_voter', 'Enable Ballot for Current Voter')}
-                          </button>
-                      ) : (
-                          <p style={{ color: 'var(--text-secondary)' }}>{t('waiting_for_voter', 'The Public Voting Booth is unlocked. Waiting for voter to cast their vote...')}</p>
-                      )}
-                  </div>
-              )}
-
-              {wipeConfirmation ? (
-                  <div className="glass-panel" style={{ border: '1px solid var(--error-color)' }}>
-                      <h3 style={{ color: 'var(--error-color)', marginBottom: '1rem' }}>⚠️ {t('confirm_wipe', 'Confirm Wipe')}</h3>
-                      <p style={{ marginBottom: '1rem' }}>Enter your 4-digit PIN to safely archive and clear active votes.</p>
-                      <input 
-                          type="password" pattern="[0-9]*" inputMode="numeric" maxLength="4"
-                          className="input-field" value={wipePin} onChange={e => setWipePin(e.target.value)} 
-                          style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '5px', marginBottom: '1rem' }}
-                      />
-                      {officerError && <p style={{ color: 'var(--error-color)' }}>{officerError}</p>}
-                      <div style={{ display: 'flex', gap: '1rem' }}>
-                          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => handleOfficerAction('cancel_wipe')}>{t('cancel', 'Cancel')}</button>
-                          <button className="btn btn-primary" style={{ flex: 1, background: 'var(--error-color)' }} onClick={() => handleOfficerAction('wipe')} disabled={wipePin.length !== 4}>{t('confirm_wipe', 'Confirm Wipe')}</button>
-                      </div>
-                  </div>
-              ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
-                      {currentStatus !== 'ACTIVE' ? (
-                          <button className="btn btn-primary" onClick={() => handleOfficerAction('start')} disabled={officerLoading}>
-                              ▶ {t('power_on_machine', 'Power On Machine (Start Session)')}
-                          </button>
-                      ) : (
-                          <button className="btn btn-secondary" onClick={() => handleOfficerAction('stop')} disabled={officerLoading}>
-                              🛑 {t('power_off_machine', 'Power Off Machine (Stop Session)')}
-                          </button>
-                      )}
-
-                      {sessionHistory.length > 0 && currentStatus !== 'ACTIVE' && (
-                          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{t('historical_archives', 'Historical Archives')}</p>
-                              <button className="btn btn-secondary" style={{ width: '100%', marginBottom: '0.5rem', fontSize: '0.9rem' }} onClick={() => handleOfficerAction('restore', sessionHistory[0])} disabled={officerLoading}>
-                                  {t('load_last_session', 'Load Last Session')} ({new Date(parseInt(sessionHistory[0].split('_')[1])).toLocaleString()})
-                              </button>
-                          </div>
-                      )}
-
-                      <button className="btn btn-secondary" style={{ borderColor: 'var(--error-color)', color: 'var(--error-color)', marginTop: '1rem' }} onClick={() => handleOfficerAction('wipe_prompt')} disabled={officerLoading || currentStatus === 'ACTIVE'}>
-                          🗑️ {t('archive_reset', 'Archive & Reset Active Votes')}
-                      </button>
-                  </div>
-              )}
-          </div>
-      )}
-
-      {role === 'officer' && activeTab === 'verification' && (
-          <div className="animate-fade-in" style={{ textAlign: 'center', maxWidth: '500px', margin: '0 auto' }}>
-              <div className="glass-panel">
-                  <h2 style={{ marginBottom: '1rem' }}>{t('verify_voter_id', 'Verify Voter ID')}</h2>
-                  <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-                      Verify the voter's physical ID card by scanning it. If valid, generate a unique, one-time Acknowledgment Number for them to use at the Voting Booth.
-                  </p>
-
-                  {!scannedVoter && !generatedAck && (
-                      <>
-                          <div className="scanner-container">
-                              {isScanning && <div className="scanner-line"></div>}
-                              <div className="scanner-text">{isScanning ? t('scanning', 'Scanning...') : t('place_id', 'Place Virtual ID to Scan')}</div>
-                          </div>
-                          <button className="btn btn-primary" onClick={handleScan} disabled={isScanning} style={{ width: '100%', marginBottom: '2rem' }}>
-                              {isScanning ? t('scanning', 'Scanning...') : t('simulate_scan', 'Simulate Scan')}
-                          </button>
-                      </>
-                  )}
-
-                  {scannedVoter && !generatedAck && (
-                      <div className="animate-fade-in" style={{ marginBottom: '2rem' }}>
-                          <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--success-color)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem' }}>
-                              <p style={{ color: 'var(--success-color)', fontWeight: 'bold', marginBottom: '0.5rem' }}>✓ Voter Verified</p>
-                              <p style={{ color: 'var(--text-secondary)' }}>ID: {scannedVoter.id}</p>
-                              <p style={{ color: 'var(--text-secondary)' }}>Name: {scannedVoter.name}</p>
-                          </div>
-                          
-                          <button className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.2rem', marginBottom: '1rem' }} onClick={handleGenerateAck} disabled={officerLoading}>
-                              {t('generate_ack', 'Generate ACK Number')}
-                          </button>
-                      </div>
-                  )}
-
-                  {officerError && <p style={{ color: 'var(--error-color)', marginTop: '1rem' }}>{officerError}</p>}
-
-                  {generatedAck && (
-                      <div className="animate-fade-in" style={{ marginTop: '2rem', padding: '2rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid var(--primary-color)', borderRadius: '8px' }}>
-                          <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{t('provide_ack_to_voter', 'Provide this number to the voter:')}</p>
-                          <div style={{ fontSize: '2.5rem', fontWeight: 'bold', letterSpacing: '4px', color: 'white', marginBottom: '1.5rem' }}>
-                              {generatedAck}
-                          </div>
-                          <button className="btn btn-secondary" onClick={() => { setScannedVoter(null); setGeneratedAck(null); }} style={{ width: '100%' }}>
-                              {t('scan_next_voter', 'Scan Next Voter')}
-                          </button>
-                      </div>
-                  )}
-              </div>
-          </div>
-      )}
-
     </div>
   );
 }

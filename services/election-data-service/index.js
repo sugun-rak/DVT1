@@ -317,31 +317,50 @@ app.get('/candidates', async (req, res) => {
 app.get('/stats', async (req, res) => {
     try {
         const { constituencyId } = req.query;
-        let partyJoin = 'LEFT JOIN votes v ON p.id = v.party_id';
-        let countQuery = 'SELECT COUNT(*) as total FROM votes';
-        let params = [];
         
+        // 1. Get Party/Candidate Standings
+        let standingsQuery = `
+            SELECT 
+                p.name as party_name, 
+                p.symbol, 
+                c.name as candidate_name,
+                c.id as candidate_id,
+                co.name as constituency_name,
+                COUNT(v.id) as vote_count
+            FROM parties p
+            JOIN candidates c ON p.id = c.party_id
+            JOIN constituencies co ON c.constituency_id = co.id
+            LEFT JOIN votes v ON c.id = v.candidate_id
+        `;
+        let params = [];
         if (constituencyId) {
-            partyJoin = 'LEFT JOIN votes v ON p.id = v.party_id AND v.candidate_id IN (SELECT id FROM candidates WHERE constituency_id = $1)';
-            countQuery = 'SELECT COUNT(*) as total FROM votes WHERE candidate_id IN (SELECT id FROM candidates WHERE constituency_id = $1)';
+            standingsQuery += ' WHERE co.id = $1';
             params.push(constituencyId);
         }
-
-        const partyRes = await pool.query(`
-            SELECT p.name as party_name, p.symbol, COUNT(v.id) as vote_count
-            FROM parties p
-            ${partyJoin}
-            GROUP BY p.id
-            ORDER BY vote_count DESC
-        `, params);
+        standingsQuery += ' GROUP BY p.id, c.id, co.id ORDER BY vote_count DESC';
         
-        const totalRes = await pool.query(countQuery, params);
+        const standingsRes = await pool.query(standingsQuery, params);
+
+        // 2. Get Participation Metrics (Turnout)
+        let totalVotesQuery = 'SELECT COUNT(*) as total FROM votes';
+        let participationQuery = 'SELECT COUNT(*) as voted FROM voter_participation';
+        if (constituencyId) {
+            totalVotesQuery = 'SELECT COUNT(*) as total FROM votes WHERE candidate_id IN (SELECT id FROM candidates WHERE constituency_id = $1)';
+            participationQuery = 'SELECT COUNT(*) as voted FROM voter_participation WHERE constituency_id = $1';
+        }
+        
+        const totalVotesRes = await pool.query(totalVotesQuery, params);
+        const participationRes = await pool.query(participationQuery, params);
         
         res.json({
-            total_votes: totalRes.rows[0] ? parseInt(totalRes.rows[0].total) : 0,
-            party_stats: partyRes.rows.map(r => ({ ...r, vote_count: parseInt(r.vote_count) }))
+            total_votes: parseInt(totalVotesRes.rows[0]?.total || 0),
+            participation_count: parseInt(participationRes.rows[0]?.voted || 0),
+            party_stats: standingsRes.rows.map(r => ({ ...r, vote_count: parseInt(r.vote_count) }))
         });
-    } catch (e) { res.status(500).json({ error: 'Database error' }); }
+    } catch (e) { 
+        console.error('Stats Error:', e);
+        res.status(500).json({ error: 'Database error' }); 
+    }
 });
 
 app.post('/reset-stats', async (req, res) => {

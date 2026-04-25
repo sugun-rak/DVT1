@@ -188,10 +188,21 @@ function buildGuestExpiredEmail({ guestName, expiredAt, guestTimezone, timezoneO
 }
 
 const guest_pins = new Map();
+// Keep a small buffer of recently expired sessions to allow late notification requests
+const recent_expiries = new Map(); 
+
 setInterval(() => {
     const now = Date.now();
     for (const [pin, data] of guest_pins.entries()) {
-        if (data.session.expiresAt && now > data.session.expiresAt) guest_pins.delete(pin);
+        if (data.session.expiresAt && now > data.session.expiresAt) {
+            // Buffer the email for 5 minutes before total deletion
+            recent_expiries.set(data.session.guestEmail, { ...data.session, deletedAt: now });
+            guest_pins.delete(pin);
+        }
+    }
+    // Cleanup the buffer
+    for (const [email, data] of recent_expiries.entries()) {
+        if (now - data.deletedAt > 300000) recent_expiries.delete(email);
     }
 }, 60000);
 
@@ -409,14 +420,16 @@ app.post('/guest/expired-notify', async (req, res) => {
         if (!email || !name) return res.status(400).json({ error: 'Email and name required' });
 
         // Find the shared session for this guest group to prevent duplicate emails
-        let sessionToNotify = null;
-        for (const pinData of guest_pins.values()) {
-            if (pinData.session && pinData.session.guestEmail === email) {
-                sessionToNotify = pinData.session;
-                break;
+        let sessionToNotify = recent_expiries.get(email);
+        if (!sessionToNotify) {
+            for (const pinData of guest_pins.values()) {
+                if (pinData.session && pinData.session.guestEmail === email) {
+                    sessionToNotify = pinData.session;
+                    break;
+                }
             }
         }
-
+        
         if (sessionToNotify) {
             if (sessionToNotify.notificationSent) {
                 return res.json({ success: true, message: 'Notification already sent' });
@@ -537,6 +550,18 @@ app.get('/officer/status/:constituencyId', async (req, res) => {
         const data = { is_active: !!row?.is_active, ballot_enabled: !!row?.ballot_enabled };
         setCache(`status:${cId}`, data);
         res.json(data);
+    } catch (err) { res.status(500).json({ error: 'Database error' }); }
+});
+
+// Admin: Bulk Status Check (solves latency issues)
+app.get('/officer/status-batch', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT constituency_id, is_active, ballot_enabled FROM constituency_status');
+        const statusMap = {};
+        result.rows.forEach(r => {
+            statusMap[r.constituency_id] = { is_active: !!r.is_active, ballot_enabled: !!r.ballot_enabled };
+        });
+        res.json(statusMap);
     } catch (err) { res.status(500).json({ error: 'Database error' }); }
 });
 
