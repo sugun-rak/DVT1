@@ -114,7 +114,7 @@ export default function GuestRegistration({ onBack }) {
             
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-              background: 'rgba(0,0,0,0.5)', padding: '0.5rem 1.5rem', borderRadius: '100px',
+              background: 'var(--panel-inner-bg)', padding: '0.5rem 1.5rem', borderRadius: '100px',
               border: `1px solid ${countdownColor}`
             }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>⏱ Expires in:</span>
@@ -136,7 +136,7 @@ export default function GuestRegistration({ onBack }) {
               <p style={{ margin: 0, color: '#c084fc', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>👑 Super Admin</p>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(168,85,247,0.15)', padding: '2px 8px', borderRadius: '100px' }}>Global Insights</span>
             </div>
-            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>User: <strong style={{ color: 'white' }}>superadmin</strong></p>
+            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>User: <strong style={{ color: 'var(--text-main)' }}>superadmin</strong></p>
             <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <span className="metric-label" style={{ margin: 0 }}>PIN:</span>
                 <strong style={{ letterSpacing: '8px', color: '#c084fc', fontSize: '1.8rem', fontFamily: 'Outfit' }}>{guestPins.superadminPin}</strong>
@@ -149,7 +149,7 @@ export default function GuestRegistration({ onBack }) {
               <p style={{ margin: 0, color: 'var(--primary-color)', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>🛡️ General Admin</p>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(56,189,248,0.15)', padding: '2px 8px', borderRadius: '100px' }}>System Health</span>
             </div>
-            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>User: <strong style={{ color: 'white' }}>admin</strong></p>
+            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>User: <strong style={{ color: 'var(--text-main)' }}>admin</strong></p>
             <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <span className="metric-label" style={{ margin: 0 }}>PIN:</span>
                 <strong style={{ letterSpacing: '8px', color: 'var(--primary-color)', fontSize: '1.8rem', fontFamily: 'Outfit' }}>{guestPins.adminPin}</strong>
@@ -162,7 +162,7 @@ export default function GuestRegistration({ onBack }) {
               <p style={{ margin: 0, color: 'var(--success-color)', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>🛂 Polling Officer</p>
               <span style={{ fontSize: '0.7rem', color: 'var(--success-color)', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '100px' }}>Universal Access</span>
             </div>
-            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>User: <strong style={{ color: 'white' }}>officer_[any]</strong></p>
+            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>User: <strong style={{ color: 'var(--text-main)' }}>officer_[any]</strong></p>
             <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <span className="metric-label" style={{ margin: 0 }}>PIN:</span>
                 <strong style={{ letterSpacing: '8px', color: 'var(--success-color)', fontSize: '1.8rem', fontFamily: 'Outfit' }}>{guestPins.officerPin}</strong>

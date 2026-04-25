@@ -99,20 +99,20 @@ export default function VoterFlow({ onExit }) {
         <p className="metric-label" style={{ color: 'var(--primary-color)' }}>{t('session_id')}</p>
         <p style={{ fontWeight: 'bold', fontFamily: 'monospace', fontSize: '1.1rem' }}>{session.sessionId.substring(0,8)}</p>
       </div>
-      <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+      <div style={{ width: '1px', background: 'var(--border-color)' }}></div>
       <div>
         <p className="metric-label" style={{ color: 'var(--primary-color)' }}>Voter ID</p>
         <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{session.userId}</p>
       </div>
-      <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+      <div style={{ width: '1px', background: 'var(--border-color)' }}></div>
       <div>
         <p className="metric-label" style={{ color: 'var(--primary-color)' }}>{t('name')}</p>
         <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{session.voterDetails.name}</p>
       </div>
-      <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+      <div style={{ width: '1px', background: 'var(--border-color)' }}></div>
       <div>
         <p className="metric-label" style={{ color: 'var(--primary-color)' }}>{t('constituency')}</p>
-        <p style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'white' }}>{session.voterDetails.constituency_id.replace(/_/g, ' ').toUpperCase()}</p>
+        <p style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--text-main)' }}>{session.voterDetails.constituency_id.replace(/_/g, ' ').toUpperCase()}</p>
       </div>
     </div>
   );
@@ -123,14 +123,14 @@ export default function VoterFlow({ onExit }) {
         
         <button 
           onClick={onExit}
-          style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '100px', padding: '0.5rem 1rem', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s' }}
+          style={{ position: 'absolute', top: '20px', right: '20px', background: 'var(--border-color)', border: '1px solid var(--border-color)', borderRadius: '100px', padding: '0.5rem 1rem', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s' }}
           title="Exit Voting Booth"
         >
           Exit Booth
         </button>
 
         <div style={{ fontSize: '5rem', marginBottom: '1.5rem', filter: 'drop-shadow(0 0 20px rgba(56, 189, 248, 0.4))' }}>🗳️</div>
-        <h2 className="font-heading" style={{ marginBottom: '1rem', color: 'white', fontSize: '2.5rem' }}>Secure Voting Kiosk</h2>
+        <h2 className="font-heading" style={{ marginBottom: '1rem', color: 'var(--text-main)', fontSize: '2.5rem' }}>Secure Voting Kiosk</h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '2.5rem', fontSize: '1.1rem' }}>Enter the unique Acknowledgment Number provided by the Polling Officer.</p>
         
         {error && <div className="animate-fade-in" style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1.2rem', borderRadius: '12px', border: '1px solid var(--error-color)', marginBottom: '2rem', color: '#fca5a5' }}>
@@ -140,7 +140,7 @@ export default function VoterFlow({ onExit }) {
         <form onSubmit={submitVoterLogin} style={{ textAlign: 'left' }}>
           <div style={{ marginBottom: '2rem' }}>
             <label className="metric-label" style={{ textAlign: 'center', display: 'block', marginBottom: '1rem' }}>{t('enter_ack', 'Acknowledgment Number')}</label>
-            <input type="text" className="input-field" value={ackNumber} onChange={(e) => setAckNumber(e.target.value)} style={{ fontSize: '2rem', letterSpacing: '4px', textAlign: 'center', height: '70px', borderRadius: '16px', fontFamily: 'Outfit', fontWeight: '800', background: 'rgba(0,0,0,0.4)' }} required />
+            <input type="text" className="input-field" value={ackNumber} onChange={(e) => setAckNumber(e.target.value)} style={{ fontSize: '2rem', letterSpacing: '4px', textAlign: 'center', height: '70px', borderRadius: '16px', fontFamily: 'Outfit', fontWeight: '800', background: 'var(--panel-inner-bg)' }} required />
           </div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', fontSize: '1.2rem', borderRadius: '16px' }} disabled={loading}>
             {loading ? 'Authenticating...' : t('start_session', 'Proceed to Vote')}
@@ -163,7 +163,7 @@ export default function VoterFlow({ onExit }) {
           {parties.map(party => (
             <div key={party.id} className="glass-panel" onClick={() => handlePartySelect(party)} style={{ padding: '2rem', textAlign: 'center', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
               <div style={{ fontSize: '4.5rem', marginBottom: '1rem', filter: 'drop-shadow(0 0 15px rgba(255,255,255,0.2))' }}>{party.symbol}</div>
-              <div style={{ fontWeight: '800', fontSize: '1.2rem', marginBottom: '0.5rem', color: 'white', fontFamily: 'Outfit' }}>{i18n.language === 'hi' ? party.name_hi : party.name}</div>
+              <div style={{ fontWeight: '800', fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--text-main)', fontFamily: 'Outfit' }}>{i18n.language === 'hi' ? party.name_hi : party.name}</div>
               {party.candidates.length > 0 && (
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{i18n.language === 'hi' ? party.candidates[0].name_hi : party.candidates[0].name}</div>
               )}
@@ -184,13 +184,13 @@ export default function VoterFlow({ onExit }) {
         <h1 className="font-heading" style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{t('confirm_selection')}</h1>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '3rem', fontSize: '1.1rem' }}>{t('confirm_desc')}</p>
         
-        <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '24px', padding: '3rem 2rem', marginBottom: '3rem', border: '1px solid rgba(56, 189, 248, 0.2)', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--panel-inner-bg)', borderRadius: '24px', padding: '3rem 2rem', marginBottom: '3rem', border: '1px solid rgba(56, 189, 248, 0.2)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'radial-gradient(circle at top right, rgba(56, 189, 248, 0.1), transparent 70%)', pointerEvents: 'none' }}></div>
             {candidate && <img src={candidate.photo} alt={candidate.name} style={{ width: '160px', height: '160px', borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--primary-color)', marginBottom: '1.5rem', boxShadow: '0 0 30px rgba(56, 189, 248, 0.3)' }} />}
             <div style={{ fontSize: '4rem', position: 'absolute', top: '2rem', right: '2rem', opacity: 0.2, filter: 'grayscale(1)' }}>{selectedParty.symbol}</div>
             
             <div style={{ fontSize: '5rem', marginBottom: '1rem', filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.2))' }}>{selectedParty.symbol}</div>
-            {candidate && <h2 className="font-heading" style={{ fontSize: '2.2rem', marginBottom: '0.5rem', color: 'white' }}>{i18n.language === 'hi' ? candidate.name_hi : candidate.name}</h2>}
+            {candidate && <h2 className="font-heading" style={{ fontSize: '2.2rem', marginBottom: '0.5rem', color: 'var(--text-main)' }}>{i18n.language === 'hi' ? candidate.name_hi : candidate.name}</h2>}
             <p style={{ color: 'var(--primary-color)', fontSize: '1.3rem', fontWeight: 'bold' }}>{i18n.language === 'hi' ? selectedParty.name_hi : selectedParty.name}</p>
         </div>
 
@@ -215,14 +215,14 @@ export default function VoterFlow({ onExit }) {
           <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto', fontSize: '3rem', border: '2px solid var(--success-color)', boxShadow: '0 0 30px rgba(16, 185, 129, 0.5)' }}>✓</div>
           <h1 className="font-heading" style={{ color: 'var(--success-color)', marginBottom: '1.5rem', fontSize: '2.5rem' }}>{t('vote_cast')}</h1>
           
-          <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1.5rem', borderRadius: '12px', marginBottom: '3rem', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text-secondary)' }}>{t('session_id')}: <strong style={{ fontFamily: 'monospace', color: 'white', letterSpacing: '1px' }}>{session.sessionId.substring(0, 12)}...</strong></p>
-            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>{t('your_ack')} <strong style={{ fontFamily: 'monospace', color: 'white', letterSpacing: '2px' }}>{session.ackNumber}</strong> {t('ack_invalid')}</p>
+          <div style={{ background: 'var(--panel-inner-bg)', padding: '1.5rem', borderRadius: '12px', marginBottom: '3rem', border: '1px solid var(--border-color)' }}>
+            <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text-secondary)' }}>{t('session_id')}: <strong style={{ fontFamily: 'monospace', color: 'var(--text-main)', letterSpacing: '1px' }}>{session.sessionId.substring(0, 12)}...</strong></p>
+            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>{t('your_ack')} <strong style={{ fontFamily: 'monospace', color: 'var(--text-main)', letterSpacing: '2px' }}>{session.ackNumber}</strong> {t('ack_invalid')}</p>
           </div>
           
           <h3 className="metric-label" style={{ color: 'var(--primary-color)', marginBottom: '1.5rem' }}>{t('vvpat_verify')}</h3>
           
-          <div style={{ width: '100%', maxWidth: '350px', margin: '0 auto', background: '#0f172a', border: '10px solid #1e293b', borderRadius: '12px', height: '250px', position: 'relative', overflow: 'hidden', boxShadow: 'inset 0 0 30px rgba(0,0,0,1)' }}>
+          <div style={{ width: '100%', maxWidth: '350px', margin: '0 auto', background: 'var(--panel-inner-bg-solid)', border: '10px solid #1e293b', borderRadius: '12px', height: '250px', position: 'relative', overflow: 'hidden', boxShadow: 'inset 0 0 30px rgba(0,0,0,1)' }}>
             {/* The animated slip */}
             <div style={{ 
                 position: 'absolute', top: '-100%', left: '10%', width: '80%', background: '#f8fafc', color: '#0f172a', 

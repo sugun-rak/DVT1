@@ -78,10 +78,10 @@ export default function SwipeSlider({ label, onConfirm, color = 'var(--primary-c
         position: 'relative',
         width: '100%',
         height: '60px',
-        background: 'rgba(0,0,0,0.3)',
+        background: 'var(--panel-inner-bg)',
         borderRadius: '30px',
         overflow: 'hidden',
-        border: `1px solid ${confirmed ? color : 'rgba(255,255,255,0.1)'}`,
+        border: `1px solid ${confirmed ? color : 'var(--border-color)'}`,
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.5 : 1,
         transition: 'border 0.3s'

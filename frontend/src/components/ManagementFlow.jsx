@@ -254,8 +254,8 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
                     {constituency_id && (
                         <>
                             <span>•</span>
-                            <span style={{ color: 'white' }}>{currentArea?.name || constituency_id}</span>
-                            <code style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px' }}>{constituency_id}</code>
+                            <span style={{ color: 'var(--text-main)' }}>{currentArea?.name || constituency_id}</span>
+                            <code style={{ background: 'var(--border-color)', padding: '2px 6px', borderRadius: '4px' }}>{constituency_id}</code>
                         </>
                     )}
                 </div>
@@ -275,7 +275,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
             <div className="glass-panel glow-primary animate-float" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div className="metric-label">Total Valid Votes</div>
               <div className="metric-value primary">{stats.total_votes.toLocaleString()}</div>
-              <div style={{ marginTop: '1rem', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+              <div style={{ marginTop: '1rem', height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: '100%', background: 'var(--primary-color)' }}></div>
               </div>
             </div>
@@ -285,7 +285,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
               <div className="metric-label">Verified Participation</div>
               <div className="metric-value success">{stats.participation_count.toLocaleString()}</div>
               <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ flex: 1, height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${stats.total_votes > 0 ? (stats.participation_count/stats.total_votes)*100 : 0}%`, background: 'var(--success-color)', transition: 'width 1s' }}></div>
                   </div>
                   <span style={{ fontSize: '0.8rem', color: 'var(--success-color)', fontWeight: 'bold' }}>
@@ -312,7 +312,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
           </div>
 
           {/* Super Admin Toolbar */}
-          <div className="glass-panel" style={{ padding: '1rem 1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', background: 'rgba(0,0,0,0.4)' }}>
+          <div className="glass-panel" style={{ padding: '1rem 1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', background: 'var(--panel-inner-bg)' }}>
               <div style={{ flex: 1, minWidth: '250px', position: 'relative' }}>
                   <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
                   <input type="text" className="input-field" placeholder="Search party, candidate, or area..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: '2.5rem', borderRadius: '100px' }} />
@@ -346,13 +346,13 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
                     <tr key={i}>
                       <td style={{ fontSize: '2rem', textAlign: 'center' }}>{stat.symbol}</td>
                       <td>
-                        <div style={{ fontWeight: '600', color: 'white', fontSize: '1.05rem' }}>{stat.candidate_name || 'TBA'}</div>
+                        <div style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: '1.05rem' }}>{stat.candidate_name || 'TBA'}</div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{stat.party_name}</div>
                       </td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{stat.constituency_name}</td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ flex: 1, height: '6px', background: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
                                <div style={{ height: '100%', width: `${percentage}%`, background: i === 0 ? 'var(--success-color)' : 'var(--primary-color)' }}></div>
                             </div>
                             <span style={{ fontSize: '0.8rem', width: '40px', fontWeight: 'bold' }}>{percentage}%</span>
@@ -389,7 +389,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
               </div>
            </div>
 
-           <div className="glass-panel" style={{ padding: '1rem 1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', background: 'rgba(0,0,0,0.4)' }}>
+           <div className="glass-panel" style={{ padding: '1rem 1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', background: 'var(--panel-inner-bg)' }}>
               <div style={{ flex: 1, minWidth: '250px', position: 'relative' }}>
                   <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
                   <input type="text" className="input-field" placeholder="Search area name or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: '2.5rem', borderRadius: '100px' }} />
@@ -419,7 +419,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
               <tbody>
                 {filteredHealth.map(c => (
                   <tr key={c.id}>
-                    <td><code style={{ background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '4px', color: 'var(--primary-color)' }}>{c.id}</code></td>
+                    <td><code style={{ background: 'var(--border-color)', padding: '4px 8px', borderRadius: '4px', color: 'var(--primary-color)' }}>{c.id}</code></td>
                     <td style={{ fontWeight: '600' }}>{c.name}</td>
                     <td>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: c.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', padding: '4px 12px', borderRadius: '100px', border: `1px solid ${c.is_active ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}` }}>
@@ -450,7 +450,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
           
           {/* MODULE A: MACHINE CONTROL */}
           <div className={`glass-panel ${currentStatus === 'ACTIVE' ? 'glow-success' : 'glow-warning'}`} style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
                 <h3 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     ⚙️ Machine Control
                 </h3>
@@ -459,7 +459,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>NETWORK</div>
                         <div style={{ fontWeight: 'bold', color: currentStatus === 'ACTIVE' ? 'var(--success-color)' : 'var(--error-color)' }}>{currentStatus || 'WAIT'}</div>
                     </div>
-                    <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.1)' }}></div>
+                    <div style={{ width: '1px', height: '30px', background: 'var(--border-color)' }}></div>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>VOTES</div>
                         <div style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{totalVotes}</div>
@@ -469,7 +469,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1 }}>
                 {currentStatus !== 'ACTIVE' ? (
-                    <div style={{ padding: '2rem', background: 'rgba(0,0,0,0.3)', borderRadius: '16px', textAlign: 'center' }}>
+                    <div style={{ padding: '2rem', background: 'var(--panel-inner-bg)', borderRadius: '16px', textAlign: 'center' }}>
                         <div style={{ fontSize: '3rem', opacity: 0.5, marginBottom: '1rem' }}>🔌</div>
                         <h4 style={{ marginBottom: '2rem', color: 'var(--text-secondary)' }}>Machine is currently powered down</h4>
                         <SwipeSlider label="Slide to Power On" color="var(--success-color)" onConfirm={() => handleOfficerAction('start')} disabled={officerLoading} />
@@ -492,7 +492,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
             </div>
 
             {currentStatus !== 'ACTIVE' && (
-                <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+                <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px dashed var(--border-color)' }}>
                     <button className="btn btn-secondary" style={{ width: '100%', borderColor: 'rgba(239, 68, 68, 0.3)', color: 'var(--error-color)', background: 'rgba(239, 68, 68, 0.05)' }} onClick={() => handleOfficerAction('wipe_prompt')}>🗑️ Archive & Reset Local Votes</button>
                 </div>
             )}
@@ -500,7 +500,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
             {wipeConfirmation && (
                 <div className="animate-fade-in" style={{ marginTop: '1rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', borderRadius: '12px' }}>
                     <p style={{ fontSize: '0.85rem', marginBottom: '1rem', color: '#fca5a5' }}>Security override. Enter 4-digit Officer PIN to confirm irreversible wipe:</p>
-                    <input type="password" maxLength="4" className="input-field" value={wipePin} onChange={e => setWipePin(e.target.value)} style={{ textAlign: 'center', fontSize: '2rem', letterSpacing: '8px', background: 'rgba(0,0,0,0.5)' }} />
+                    <input type="password" maxLength="4" className="input-field" value={wipePin} onChange={e => setWipePin(e.target.value)} style={{ textAlign: 'center', fontSize: '2rem', letterSpacing: '8px', background: 'var(--panel-inner-bg)' }} />
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                         <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => handleOfficerAction('cancel_wipe')}>Cancel</button>
                         <button className="btn btn-primary" style={{ flex: 1, background: 'var(--error-color)', boxShadow: '0 0 15px rgba(239, 68, 68, 0.4)' }} onClick={() => handleOfficerAction('wipe')} disabled={wipePin.length !== 4}>CONFIRM WIPE</button>
@@ -511,7 +511,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
 
           {/* MODULE B: VOTER VERIFICATION */}
           <div className="glass-panel glow-primary" style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
+            <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
                 <h3 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     👤 Identity Verification Kiosk
                 </h3>
@@ -546,7 +546,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
                     <div className="animate-fade-in" style={{ width: '100%', textAlign: 'center' }}>
                         <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '3rem 2rem', borderRadius: '16px', marginBottom: '2rem' }}>
                             <p style={{ margin: '0 0 1rem 0', color: 'var(--primary-color)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '2px' }}>Secure Voter Token</p>
-                            <div style={{ fontSize: '4.5rem', fontWeight: '800', letterSpacing: '8px', color: 'white', fontFamily: 'Outfit', textShadow: '0 0 20px rgba(56, 189, 248, 0.5)' }}>
+                            <div style={{ fontSize: '4.5rem', fontWeight: '800', letterSpacing: '8px', color: 'var(--text-main)', fontFamily: 'Outfit', textShadow: '0 0 20px rgba(56, 189, 248, 0.5)' }}>
                                 {generatedAck}
                             </div>
                             <p style={{ margin: '1rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Provide this number to the voter to unlock the booth.</p>

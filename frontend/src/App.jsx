@@ -44,6 +44,20 @@ function App() {
   const [managementSession, setManagementSession] = useState(() => ss.get('dvt_session'));
   const [publicVotingMode, setPublicVotingMode] = useState(() => ss.get('dvt_voting_mode') === true);
   
+  // ── Theme State (Persists in localStorage) ──
+  const [theme, setTheme] = useState(() => localStorage.getItem('dvt_theme') || 'dark');
+
+  useEffect(() => {
+    localStorage.setItem('dvt_theme', theme);
+    if (theme === 'light') {
+      document.body.classList.add('light-mode');
+    } else {
+      document.body.classList.remove('light-mode');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+
   const [authView, setAuthView] = useState({ view: 'select', role: '', user: '' });
   const [guestExpiring, setGuestExpiring] = useState(null);
   const [showExpiredBanner, setShowExpiredBanner] = useState(false);
@@ -160,10 +174,10 @@ function App() {
     return (
       <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center' }}>
         <div className="glass-panel animate-fade-in glow-primary" style={{ textAlign: 'center', maxWidth: '600px', padding: '3rem 2rem', borderRadius: '24px' }}>
-          <div className="scanner-line" style={{ position: 'relative', width: '200px', height: '4px', background: 'rgba(56, 189, 248, 0.2)', margin: '0 auto 3rem auto', overflow: 'hidden', borderRadius: '2px' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: '#38bdf8', animation: 'slide 1.5s infinite ease-in-out', boxShadow: '0 0 20px #38bdf8' }}></div>
+          <div className="scanner-line" style={{ position: 'relative', width: '200px', height: '4px', background: 'var(--primary-color)', opacity: 0.5, margin: '0 auto 3rem auto', overflow: 'hidden', borderRadius: '2px' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: 'var(--primary-color)', animation: 'slide 1.5s infinite ease-in-out' }}></div>
           </div>
-          <h1 className="font-heading" style={{ fontSize: '2.5rem', marginBottom: '1.5rem', fontWeight: 800, background: 'linear-gradient(135deg, #fff 0%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h1 className="font-heading" style={{ fontSize: '2.5rem', marginBottom: '1.5rem', fontWeight: 800, color: 'var(--primary-color)' }}>
             {t('connecting_secure', 'Establishing Secure Connection...')}
           </h1>
           <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', minHeight: '60px', transition: 'opacity 0.5s', lineHeight: 1.6 }}>
@@ -171,7 +185,7 @@ function App() {
           </p>
           {wakeTimeout && (
             <div className="animate-fade-in" style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '12px' }}>
-              <p style={{ color: '#fcd34d', margin: 0, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'left' }}>
+              <p style={{ color: 'var(--warning-color)', margin: 0, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'left' }}>
                 <span style={{ fontSize: '1.5rem' }}>⏳</span>
                 {t('waking_backend', 'Waking up secure environment. This may take up to 60 seconds on the first load to initialize cold storage...')}
               </p>
@@ -210,14 +224,17 @@ function App() {
           display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', fontSize: '0.85rem'
         }}>
           <span>🔑 Guest Demo Session</span>
-          <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '1rem', color: guestExpiring.secondsLeft > 120 ? '#22c55e' : guestExpiring.secondsLeft > 60 ? '#f59e0b' : '#ef4444' }}>
+          <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '1rem', color: guestExpiring.secondsLeft > 120 ? 'var(--success-color)' : guestExpiring.secondsLeft > 60 ? 'var(--warning-color)' : 'var(--error-color)' }}>
             ⏱ {String(Math.floor(guestExpiring.secondsLeft / 60)).padStart(2,'0')}:{String(guestExpiring.secondsLeft % 60).padStart(2,'0')}
           </span>
           <span style={{ color: 'var(--text-secondary)' }}>remaining</span>
         </div>
       )}
 
-      <header style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '1rem 2rem', gap: '10px', background: 'rgba(0,0,0,0.5)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+      <header style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '1rem 2rem', gap: '10px', background: 'var(--panel-inner-bg)', borderBottom: '1px solid var(--border-color)' }}>
+        <button className="btn btn-secondary" onClick={toggleTheme} style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }} title="Toggle Light/Dark Mode">
+          <span>{theme === 'dark' ? '☀️' : '🌙'}</span> {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+        </button>
         <button onClick={() => window.location.reload()} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }} title={t('refresh', 'Refresh App')}>
           <span>🔄</span> {t('refresh', 'Refresh')}
         </button>
@@ -236,7 +253,7 @@ function App() {
         )}
       </main>
       
-      <footer style={{ padding: '1rem', textAlign: 'center', background: 'rgba(0,0,0,0.8)', borderTop: '1px solid rgba(255,255,255,0.05)', color: 'var(--text-secondary)', fontSize: '0.9rem', zIndex: 10 }}>
+      <footer style={{ padding: '1rem', textAlign: 'center', background: 'var(--panel-inner-bg)', borderTop: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.9rem', zIndex: 10 }}>
         <p style={{ margin: 0 }}>&copy; {new Date().getFullYear()} SUGUN-RAKSHIT-DVS Digital Voting System. All rights reserved.</p>
         <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', opacity: 0.6 }}>Secure. Transparent. Verifiable.</p>
       </footer>
