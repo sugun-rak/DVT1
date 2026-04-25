@@ -2,10 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const compression = require('compression');
+const NodeCache = require('node-cache');
+
+const cache = new NodeCache({ stdTTL: 300 }); // Cache master data for 5 minutes
 
 const app = express();
 const port = process.env.PORT || 8002;
 
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 
@@ -76,6 +81,11 @@ async function initDB(retries = 10) {
                 cycle_id TEXT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            -- Optimization Indexes
+            CREATE INDEX IF NOT EXISTS idx_candidates_constituency ON candidates(constituency_id);
+            CREATE INDEX IF NOT EXISTS idx_votes_candidate ON votes(candidate_id);
+            CREATE INDEX IF NOT EXISTS idx_participation_constituency ON voter_participation(constituency_id);
         `);
 
         // ── Data Migration & Anonymization (Voter Secrecy Patch) ────────────────
@@ -217,14 +227,23 @@ initDB();
 
 app.get('/states', async (req, res) => {
     try {
+        const cached = cache.get('states');
+        if (cached) return res.json(cached);
+
         const result = await pool.query('SELECT * FROM states');
-        res.json(result.rows || []);
+        const data = result.rows || [];
+        cache.set('states', data);
+        res.json(data);
     } catch (e) { res.status(500).json({ error: 'Database error' }); }
 });
 
 app.get('/constituencies', async (req, res) => {
     try {
         const { stateId } = req.query;
+        const cacheKey = `constituencies_${stateId || 'all'}`;
+        const cached = cache.get(cacheKey);
+        if (cached) return res.json(cached);
+
         let query = 'SELECT * FROM constituencies';
         let params = [];
         if (stateId) {
@@ -232,13 +251,19 @@ app.get('/constituencies', async (req, res) => {
             params.push(stateId);
         }
         const result = await pool.query(query, params);
-        res.json(result.rows || []);
+        const data = result.rows || [];
+        cache.set(cacheKey, data);
+        res.json(data);
     } catch (e) { res.status(500).json({ error: 'Database error' }); }
 });
 
 app.get('/parties', async (req, res) => {
     try {
         const { constituencyId } = req.query;
+        const cacheKey = `parties_${constituencyId || 'all'}`;
+        const cached = cache.get(cacheKey);
+        if (cached) return res.json(cached);
+
         let query = `
             SELECT p.id as party_id, p.name as party_name, p.name_hi as party_name_hi, p.symbol,
                    c.id as candidate_id, c.name as candidate_name, c.name_hi as candidate_name_hi, c.photo
@@ -266,19 +291,26 @@ app.get('/parties', async (req, res) => {
             });
         });
 
-        res.json(Object.values(partiesMap).sort((a, b) => a.name.localeCompare(b.name)));
+        const data = Object.values(partiesMap).sort((a, b) => a.name.localeCompare(b.name));
+        cache.set(cacheKey, data);
+        res.json(data);
     } catch (e) { res.status(500).json({ error: 'Database error' }); }
 });
 
 app.get('/candidates', async (req, res) => {
     try {
+        const cached = cache.get('candidates_all');
+        if (cached) return res.json(cached);
+
         const result = await pool.query(`
             SELECT c.*, p.name as party_name, p.symbol as party_symbol, co.name as constituency_name 
             FROM candidates c 
             JOIN parties p ON c.party_id = p.id
             JOIN constituencies co ON c.constituency_id = co.id
         `);
-        res.json(result.rows || []);
+        const data = result.rows || [];
+        cache.set('candidates_all', data);
+        res.json(data);
     } catch (e) { res.status(500).json({ error: 'Database error' }); }
 });
 

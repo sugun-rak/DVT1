@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -190,7 +191,7 @@ const guest_pins = new Map();
 setInterval(() => {
     const now = Date.now();
     for (const [pin, data] of guest_pins.entries()) {
-        if (now > data.expiresAt) guest_pins.delete(pin);
+        if (data.session.expiresAt && now > data.session.expiresAt) guest_pins.delete(pin);
     }
 }, 60000);
 
@@ -199,6 +200,7 @@ const app = express();
 const port = process.env.PORT || 8001;
 const JWT_SECRET = process.env.JWT_SECRET || 'dvt-secure-jwt-secret-key-2026';
 
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 
@@ -362,31 +364,41 @@ app.post('/guest/register', async (req, res) => {
         const superadminPin = generatePin();
         const officerPin = generatePin();
         
-        const expiresAt = Date.now() + 15 * 60 * 1000;
+        // We don't set expiresAt yet. It starts on first login.
         const guestTimezone = timezone || 'UTC';
         const timezoneOffsetMinutes = typeof req.body.timezoneOffsetMinutes === 'number'
             ? req.body.timezoneOffsetMinutes : 0;
         
-        // Store email, name, and timezone so we can send the expiry notification later
-        guest_pins.set(adminPin, { role: 'admin', expiresAt, username: 'admin', guestEmail: email, guestName: name, guestTimezone, timezoneOffsetMinutes });
-        guest_pins.set(superadminPin, { role: 'superadmin', expiresAt, username: 'superadmin', guestEmail: email, guestName: name, guestTimezone, timezoneOffsetMinutes });
-        guest_pins.set(officerPin, { role: 'officer', expiresAt, universal: true, guestEmail: email, guestName: name, guestTimezone, timezoneOffsetMinutes });
+        // This object is shared between all 3 PINs for this registration
+        const sharedSession = {
+            guestEmail: email,
+            guestName: name,
+            guestTimezone,
+            timezoneOffsetMinutes,
+            expiresAt: null, // Set on first login
+            timerStarted: false
+        };
         
-        // Owner notification (plain text, as before)
+        guest_pins.set(adminPin, { role: 'admin', session: sharedSession, username: 'admin' });
+        guest_pins.set(superadminPin, { role: 'superadmin', session: sharedSession, username: 'superadmin' });
+        guest_pins.set(officerPin, { role: 'officer', universal: true, session: sharedSession });
+        
+        // Owner notification
         await sendNotificationEmail('New Guest Beta Tester Registered', 
-            `User ${name} (${email}) has registered for a 15-minute Guest Session.\n` +
-            `SuperAdmin Temp PIN: ${superadminPin} (username: superadmin)\n` +
-            `Admin Temp PIN: ${adminPin} (username: admin)\n` +
-            `Officer Temp PIN: ${officerPin} (UNIVERSAL — any constituency)\n` +
-            `Expires at: ${new Date(expiresAt).toISOString()}\n` +
-            `Guest Timezone: ${guestTimezone} (offset: ${timezoneOffsetMinutes >= 0 ? '+' : ''}${timezoneOffsetMinutes} min)`
+            `User ${name} (${email}) has registered. Timer will start on their first login.\n` +
+            `SuperAdmin PIN: ${superadminPin}\nAdmin PIN: ${adminPin}\nOfficer PIN: ${officerPin}`
         );
 
-        // Guest notification — send styled HTML email to the guest's own inbox
-        const guestHtml = buildGuestAccessEmail({ guestName: name, adminPin, superadminPin, officerPin, expiresAt, guestTimezone, timezoneOffsetMinutes });
+        // Guest notification
+        // Note: We show "15 minutes" in email, but it's 15 mins FROM LOGIN.
+        const guestHtml = buildGuestAccessEmail({ 
+            guestName: name, adminPin, superadminPin, officerPin, 
+            expiresAt: Date.now() + 15 * 60 * 1000, // Just for display in email as "Example"
+            guestTimezone, timezoneOffsetMinutes 
+        });
         await sendGuestEmail(email, '🗳️ DVS Demo Access — Your Temporary PINs (15 min)', guestHtml);
         
-        res.json({ success: true, adminPin, superadminPin, officerPin, expiresAt });
+        res.json({ success: true, adminPin, superadminPin, officerPin });
     } catch (err) { res.status(500).json({ error: 'Failed to generate guest pins' }); }
 });
 
@@ -413,12 +425,27 @@ app.post('/admin/login', async (req, res) => {
         if (lockoutTime > 0) return res.status(403).json({ error: `Account locked. Try again in ${lockoutTime} seconds.` });
 
         // Check guest PIN (admin or superadmin)
-        const guestData = guest_pins.get(pin);
-        if (guestData && (guestData.role === 'admin' || guestData.role === 'superadmin') && guestData.username === username && Date.now() < guestData.expiresAt) {
-            recordAttempt(username, true);
-            const guestRole = guestData.role;
-            const token = jwt.sign({ id: `guest_${guestRole}`, role: guestRole }, JWT_SECRET, { expiresIn: '15m' });
-            return res.json({ token, role: guestRole });
+        const pinData = guest_pins.get(pin);
+        if (pinData && (pinData.role === 'admin' || pinData.role === 'superadmin') && pinData.username === username) {
+            const session = pinData.session;
+            
+            // Start timer on very first login
+            if (!session.timerStarted) {
+                session.expiresAt = Date.now() + 15 * 60 * 1000;
+                session.timerStarted = true;
+                console.log(`[Timer Start] Guest session activated for ${session.guestEmail}. Expires in 15m.`);
+            }
+
+            if (Date.now() < session.expiresAt) {
+                recordAttempt(username, true);
+                const guestRole = pinData.role;
+                // Calculate remaining seconds for JWT
+                const remainingSecs = Math.max(1, Math.floor((session.expiresAt - Date.now()) / 1000));
+                const token = jwt.sign({ id: `guest_${guestRole}`, role: guestRole }, JWT_SECRET, { expiresIn: remainingSecs });
+                return res.json({ token, role: guestRole });
+            } else {
+                return res.status(401).json({ error: 'Guest access has expired.' });
+            }
         }
 
         const result = await pool.query('SELECT * FROM admins WHERE username = $1', [username]);
@@ -444,15 +471,27 @@ app.post('/officer/login', async (req, res) => {
         const lockoutTime = checkLockout(username);
         if (lockoutTime > 0) return res.status(403).json({ error: `Account locked. Try again in ${lockoutTime} seconds.` });
 
-        // Check guest officer PIN — UNIVERSAL: works for any constituency the tester selects.
-        // Just like the permanent owner PIN 0000 works for any officer username.
-        const guestData = guest_pins.get(pin);
-        if (guestData && guestData.role === 'officer' && Date.now() < guestData.expiresAt) {
-            recordAttempt(username, true);
-            // Derive constituency from whichever username was selected at login
-            const cId = username.startsWith('officer_') ? username.replace('officer_', '') : 's_1_c_1';
-            const token = jwt.sign({ id: 'guest_officer', role: 'officer', constituency_id: cId }, JWT_SECRET, { expiresIn: '15m' });
-            return res.json({ token, role: 'officer', constituency_id: cId });
+        // Check guest officer PIN
+        const pinData = guest_pins.get(pin);
+        if (pinData && pinData.role === 'officer') {
+            const session = pinData.session;
+
+            // Start timer on very first login
+            if (!session.timerStarted) {
+                session.expiresAt = Date.now() + 15 * 60 * 1000;
+                session.timerStarted = true;
+                console.log(`[Timer Start] Guest session activated for ${session.guestEmail}. Expires in 15m.`);
+            }
+
+            if (Date.now() < session.expiresAt) {
+                recordAttempt(username, true);
+                const cId = username.startsWith('officer_') ? username.replace('officer_', '') : 's_1_c_1';
+                const remainingSecs = Math.max(1, Math.floor((session.expiresAt - Date.now()) / 1000));
+                const token = jwt.sign({ id: 'guest_officer', role: 'officer', constituency_id: cId }, JWT_SECRET, { expiresIn: remainingSecs });
+                return res.json({ token, role: 'officer', constituency_id: cId });
+            } else {
+                return res.status(401).json({ error: 'Guest access has expired.' });
+            }
         }
 
         const result = await pool.query('SELECT * FROM polling_officers WHERE username = $1', [username]);

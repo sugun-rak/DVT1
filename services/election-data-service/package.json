@@ -11,10 +11,12 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.0",
+    "node-cache": "^5.1.2",
     "pg": "^8.20.0",
     "sqlite3": "^6.0.1",
     "uuid": "^13.0.0"

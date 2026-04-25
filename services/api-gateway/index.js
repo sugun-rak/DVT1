@@ -2,9 +2,12 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 
+const compression = require('compression');
+
 const app = express();
 const port = process.env.PORT || 8000;
 
+app.use(compression());
 app.use(cors());
 
 // ── Keep-Alive Health Endpoints (for cron-job.org pinging) ──────────────

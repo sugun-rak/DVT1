@@ -6,11 +6,11 @@ import VoterFlow from './components/VoterFlow';
 import ManagementFlow from './components/ManagementFlow';
 import { API_URL } from './config';
 
-// ── Tab-isolated storage helpers (sessionStorage = per-tab, survives refresh, not shared across tabs) ──
-const ss = {
-  get: (k) => { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
-  set: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
-  remove: (k) => { try { sessionStorage.removeItem(k); } catch {} },
+// ── Local storage helpers (shared across tabs, survives refresh) ──
+const ls = {
+  get: (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  remove: (k) => { try { localStorage.removeItem(k); } catch {} },
 };
 
 // Fire expiry notification via sendBeacon (survives page close) + fetch fallback
@@ -24,12 +24,10 @@ function fireExpiryNotification(guestInfo, expiryMs) {
     expiredAt: String(expiryMs || Date.now())
   });
   const url = `${API_URL}/verification/guest/expired-notify`;
-  // sendBeacon fires even on tab close — much more reliable than fetch in setTimeout
   const beaconOk = navigator.sendBeacon
     ? navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }))
     : false;
   if (!beaconOk) {
-    // Fallback: regular fetch
     fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload })
       .catch(e => console.error('Expiry notify failed', e));
   }
@@ -42,60 +40,63 @@ function App() {
   const [wakeTimeout, setWakeTimeout] = useState(false);
   const [factIndex, setFactIndex] = useState(0);
 
-  // ── Use sessionStorage so each tab is fully independent ──
-  const [managementSession, setManagementSession] = useState(() => ss.get('dvt_session'));
-  const [publicVotingMode, setPublicVotingMode] = useState(() => ss.get('dvt_voting_mode') === true);
+  const [managementSession, setManagementSession] = useState(() => ls.get('dvt_session'));
+  const [publicVotingMode, setPublicVotingMode] = useState(() => ls.get('dvt_voting_mode') === true);
   
   const [authView, setAuthView] = useState({ view: 'select', role: '', user: '' });
   const [guestExpiring, setGuestExpiring] = useState(null);
   const [showExpiredBanner, setShowExpiredBanner] = useState(false);
 
+  // Cross-tab synchronization
   useEffect(() => {
-    if (managementSession) ss.set('dvt_session', managementSession);
-    else ss.remove('dvt_session');
+    const handleSync = (e) => {
+      if (e.key === 'dvt_session') setManagementSession(e.newValue ? JSON.parse(e.newValue) : null);
+      if (e.key === 'dvt_voting_mode') setPublicVotingMode(e.newValue === 'true');
+    };
+    window.addEventListener('storage', handleSync);
+    return () => window.removeEventListener('storage', handleSync);
+  }, []);
+
+  useEffect(() => {
+    if (managementSession) ls.set('dvt_session', managementSession);
+    else ls.remove('dvt_session');
   }, [managementSession]);
 
   useEffect(() => {
-    ss.set('dvt_voting_mode', publicVotingMode);
+    ls.set('dvt_voting_mode', publicVotingMode);
   }, [publicVotingMode]);
 
-  // ── Guest Session Auto-Logout (refresh-safe: derives timer from JWT exp, not from mount time) ──
   useEffect(() => {
     if (!managementSession?.token) { setGuestExpiring(null); return; }
 
     let payload = null;
     try { payload = JSON.parse(atob(managementSession.token.split('.')[1])); } catch { return; }
 
-    // Only for guest sessions (id starts with 'guest_')
     if (!payload?.id?.startsWith('guest_')) { setGuestExpiring(null); return; }
 
     const expiryMs = payload.exp * 1000;
-    const guestInfo = ss.get('dvt_guest_info') || {};
+    const guestInfo = ls.get('dvt_guest_info') || {};
 
-    // ── Startup check: if session already expired (e.g. came back after long time) ──
     if (Date.now() >= expiryMs) {
       fireExpiryNotification(guestInfo, expiryMs);
-      ss.remove('dvt_guest_info');
+      ls.remove('dvt_guest_info');
       setManagementSession(null);
       setAuthView({ view: 'role_select', role: '', user: '' });
       return;
     }
 
-    // Live countdown ticker — uses real remaining time from JWT, not 15 min from mount
     const tickerId = setInterval(() => {
       const remaining = Math.max(0, Math.floor((expiryMs - Date.now()) / 1000));
       setGuestExpiring({ secondsLeft: remaining, isExpired: remaining === 0 });
     }, 1000);
 
-    // Auto-logout at exact JWT expiry (logoutDelay = ms remaining, not 15 min)
     const logoutDelay = Math.max(0, expiryMs - Date.now());
     const logoutId = setTimeout(() => {
       setShowExpiredBanner(true);
-      // sendBeacon + fetch fallback for reliable delivery
       fireExpiryNotification(guestInfo, expiryMs);
       setTimeout(() => {
         setShowExpiredBanner(false);
-        ss.remove('dvt_guest_info');
+        ls.remove('dvt_guest_info');
         setManagementSession(null);
         setAuthView({ view: 'role_select', role: '', user: '' });
       }, 4000);
@@ -103,7 +104,6 @@ function App() {
 
     return () => { clearInterval(tickerId); clearTimeout(logoutId); };
   }, [managementSession]);
-
   // Backend Wake-up Sequence
   useEffect(() => {
     let timeoutId;
