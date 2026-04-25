@@ -51,8 +51,8 @@
   --text-secondary: #475569;
   --text-inverse: #ffffff;
   
-  --border-color: rgba(0, 0, 0, 0.08);
-  --border-color-hover: rgba(0, 0, 0, 0.15);
+  --border-color: rgba(0, 0, 0, 0.15);
+  --border-color-hover: rgba(0, 0, 0, 0.25);
   
   --shadow-color: rgba(0, 0, 0, 0.05);
   
@@ -65,6 +65,11 @@
   margin: 0;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
+}
+
+option {
+  background: var(--panel-bg-hover);
+  color: var(--text-main);
 }
 
 body {

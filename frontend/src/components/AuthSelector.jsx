@@ -136,7 +136,7 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100px', height: '100px', borderRadius: '24px', background: 'var(--border-color)', backdropFilter: 'blur(10px)', border: '1px solid var(--border-color)', marginBottom: '1.5rem', boxShadow: '0 0 30px rgba(56, 189, 248, 0.2)' }}>
               <img src={logo} alt="DVT Logo" style={{ height: '60px', filter: 'drop-shadow(0 0 10px rgba(56, 189, 248, 0.8))' }} />
           </div>
-          <h1 className="font-heading" style={{ fontSize: 'clamp(3rem, 8vw, 4.5rem)', fontWeight: '800', background: 'linear-gradient(135deg, #fff 0%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+          <h1 className="font-heading" style={{ fontSize: 'clamp(3rem, 8vw, 4.5rem)', fontWeight: '800', background: 'linear-gradient(135deg, var(--text-main) 0%, var(--primary-color) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
             {t('app_title', 'Digital Voting System')}
           </h1>
           <p style={{ fontSize: 'clamp(1.1rem, 4vw, 1.3rem)', color: 'var(--text-secondary)', marginTop: '1rem', maxWidth: '650px', margin: '1.5rem auto 0', lineHeight: 1.6 }}>
@@ -159,7 +159,7 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
                 }}>
                   <div style={{ width: '40px', height: '4px', background: 'var(--primary-color)', marginBottom: '1.5rem', borderRadius: '2px', boxShadow: '0 0 10px var(--primary-color)' }}></div>
                   <h2 className="font-heading" style={{ fontSize: 'clamp(1.8rem, 5vw, 2.2rem)', color: 'var(--text-main)', marginBottom: '1rem', fontWeight: '800' }}>{slide.title}</h2>
-                  <p style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.6' }}>{slide.text}</p>
+                  <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>{slide.text}</p>
                 </div>
               ))}
             </div>
