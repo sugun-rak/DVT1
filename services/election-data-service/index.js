@@ -53,22 +53,73 @@ async function initDB(retries = 10) {
             );
             CREATE TABLE IF NOT EXISTS votes (
                 id SERIAL PRIMARY KEY,
-                session_id TEXT UNIQUE,
-                voter_id TEXT UNIQUE,
                 party_id TEXT,
                 candidate_id TEXT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS votes_history (
                 id SERIAL PRIMARY KEY,
-                session_id TEXT,
-                voter_id TEXT,
                 party_id TEXT,
                 candidate_id TEXT,
                 cycle_id TEXT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS voter_participation (
+                voter_id TEXT PRIMARY KEY,
+                constituency_id TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS voter_participation_history (
+                id SERIAL PRIMARY KEY,
+                voter_id TEXT,
+                constituency_id TEXT,
+                cycle_id TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         `);
+
+        // ── Data Migration & Anonymization (Voter Secrecy Patch) ────────────────
+        // If 'votes' or 'votes_history' still have 'voter_id' columns, migrate and drop them.
+        const tableInfo = await pool.query(`
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'votes' AND column_name = 'voter_id'
+        `);
+        if (tableInfo.rows.length > 0) {
+            console.log('Migrating existing votes to participation registry for secrecy...');
+            const client = await pool.connect();
+            try {
+                await client.query('BEGIN');
+                // 1. Copy participation from current votes
+                await client.query(`
+                    INSERT INTO voter_participation (voter_id, constituency_id, timestamp)
+                    SELECT v.voter_id, c.constituency_id, v.timestamp 
+                    FROM votes v
+                    JOIN candidates c ON v.candidate_id = c.id
+                    ON CONFLICT (voter_id) DO NOTHING
+                `);
+                // 2. Copy participation from history
+                await client.query(`
+                    INSERT INTO voter_participation_history (voter_id, constituency_id, cycle_id, timestamp)
+                    SELECT v.voter_id, c.constituency_id, v.cycle_id, v.timestamp 
+                    FROM votes_history v
+                    JOIN candidates c ON v.candidate_id = c.id
+                `);
+                // 3. Drop identifying columns from votes
+                await client.query('ALTER TABLE votes DROP COLUMN IF EXISTS voter_id');
+                await client.query('ALTER TABLE votes DROP COLUMN IF EXISTS session_id');
+                // 4. Drop identifying columns from history
+                await client.query('ALTER TABLE votes_history DROP COLUMN IF EXISTS voter_id');
+                await client.query('ALTER TABLE votes_history DROP COLUMN IF EXISTS session_id');
+                
+                await client.query('COMMIT');
+                console.log('Migration completed. All votes are now anonymous.');
+            } catch (e) {
+                await client.query('ROLLBACK');
+                console.error('Migration failed:', e);
+            } finally {
+                client.release();
+            }
+        }
 
         // SEEDER LOGIC
         const res = await pool.query('SELECT COUNT(*) as count FROM states');
@@ -267,12 +318,17 @@ app.post('/reset-stats', async (req, res) => {
     try {
         await client.query('BEGIN');
         await client.query(`
-            INSERT INTO votes_history (session_id, voter_id, party_id, candidate_id, cycle_id, timestamp)
-            SELECT session_id, voter_id, party_id, candidate_id, $1, timestamp FROM votes
+            INSERT INTO votes_history (party_id, candidate_id, cycle_id, timestamp)
+            SELECT party_id, candidate_id, $1, timestamp FROM votes
+        `, [cycleId]);
+        await client.query(`
+            INSERT INTO voter_participation_history (voter_id, constituency_id, cycle_id, timestamp)
+            SELECT voter_id, constituency_id, $1, timestamp FROM voter_participation
         `, [cycleId]);
         await client.query(`DELETE FROM votes`);
+        await client.query(`DELETE FROM voter_participation`);
         await client.query('COMMIT');
-        res.json({ success: true, message: 'Stats archived and reset', cycleId });
+        res.json({ success: true, message: 'Stats archived and reset (participation cleared)', cycleId });
     } catch (e) {
         await client.query('ROLLBACK');
         res.status(500).json({ error: 'Failed to reset stats' });
@@ -289,13 +345,19 @@ app.post('/reset-constituency', async (req, res) => {
     try {
         await client.query('BEGIN');
         await client.query(`
-            INSERT INTO votes_history (session_id, voter_id, party_id, candidate_id, cycle_id, timestamp)
-            SELECT session_id, voter_id, party_id, candidate_id, $1, timestamp FROM votes
+            INSERT INTO votes_history (party_id, candidate_id, cycle_id, timestamp)
+            SELECT party_id, candidate_id, $1, timestamp FROM votes
             WHERE candidate_id IN (SELECT id FROM candidates WHERE constituency_id = $2)
         `, [cycleId, constituencyId]);
-        const delRes = await client.query(`DELETE FROM votes WHERE candidate_id IN (SELECT id FROM candidates WHERE constituency_id = $1)`, [constituencyId]);
+        await client.query(`
+            INSERT INTO voter_participation_history (voter_id, constituency_id, cycle_id, timestamp)
+            SELECT voter_id, constituency_id, $1, timestamp FROM voter_participation
+            WHERE constituency_id = $2
+        `, [cycleId, constituencyId]);
+        await client.query(`DELETE FROM votes WHERE candidate_id IN (SELECT id FROM candidates WHERE constituency_id = $1)`, [constituencyId]);
+        await client.query(`DELETE FROM voter_participation WHERE constituency_id = $1`, [constituencyId]);
         await client.query('COMMIT');
-        res.json({ success: true, message: 'Constituency votes reset', deletedCount: delRes.rowCount });
+        res.json({ success: true, message: 'Constituency votes and participation reset', constituencyId });
     } catch (e) {
         await client.query('ROLLBACK');
         res.status(500).json({ error: 'Failed to reset constituency votes' });
@@ -329,27 +391,51 @@ app.post('/restore-session', async (req, res) => {
         await client.query('BEGIN');
         
         let qFilter = constituencyId ? `WHERE candidate_id IN (SELECT id FROM candidates WHERE constituency_id = $2)` : '';
+        let qFilterPart = constituencyId ? `WHERE constituency_id = $2` : '';
         let paramsInsert1 = constituencyId ? [newCycleId, constituencyId] : [newCycleId];
+        
+        // Archive current state before restoring
         await client.query(`
-            INSERT INTO votes_history (session_id, voter_id, party_id, candidate_id, cycle_id, timestamp)
-            SELECT session_id, voter_id, party_id, candidate_id, $1, timestamp FROM votes ${qFilter}
+            INSERT INTO votes_history (party_id, candidate_id, cycle_id, timestamp)
+            SELECT party_id, candidate_id, $1, timestamp FROM votes ${qFilter}
+        `, paramsInsert1);
+        await client.query(`
+            INSERT INTO voter_participation_history (voter_id, constituency_id, cycle_id, timestamp)
+            SELECT voter_id, constituency_id, $1, timestamp FROM voter_participation ${qFilterPart}
         `, paramsInsert1);
         
         if (constituencyId) {
             await client.query(`DELETE FROM votes WHERE candidate_id IN (SELECT id FROM candidates WHERE constituency_id = $1)`, [constituencyId]);
+            await client.query(`DELETE FROM voter_participation WHERE constituency_id = $1`, [constituencyId]);
+            
             await client.query(`
-                INSERT INTO votes (session_id, voter_id, party_id, candidate_id, timestamp)
-                SELECT session_id, voter_id, party_id, candidate_id, timestamp FROM votes_history
+                INSERT INTO votes (party_id, candidate_id, timestamp)
+                SELECT party_id, candidate_id, timestamp FROM votes_history
                 WHERE cycle_id = $1 AND candidate_id IN (SELECT id FROM candidates WHERE constituency_id = $2)
             `, [cycleId, constituencyId]);
+            await client.query(`
+                INSERT INTO voter_participation (voter_id, constituency_id, timestamp)
+                SELECT voter_id, constituency_id, timestamp FROM voter_participation_history
+                WHERE cycle_id = $1 AND constituency_id = $2
+            `, [cycleId, constituencyId]);
+            
             await client.query(`DELETE FROM votes_history WHERE cycle_id = $1 AND candidate_id IN (SELECT id FROM candidates WHERE constituency_id = $2)`, [cycleId, constituencyId]);
+            await client.query(`DELETE FROM voter_participation_history WHERE cycle_id = $1 AND constituency_id = $2`, [cycleId, constituencyId]);
         } else {
             await client.query(`DELETE FROM votes`);
+            await client.query(`DELETE FROM voter_participation`);
+            
             await client.query(`
-                INSERT INTO votes (session_id, voter_id, party_id, candidate_id, timestamp)
-                SELECT session_id, voter_id, party_id, candidate_id, timestamp FROM votes_history WHERE cycle_id = $1
+                INSERT INTO votes (party_id, candidate_id, timestamp)
+                SELECT party_id, candidate_id, timestamp FROM votes_history WHERE cycle_id = $1
             `, [cycleId]);
+            await client.query(`
+                INSERT INTO voter_participation (voter_id, constituency_id, timestamp)
+                SELECT voter_id, constituency_id, timestamp FROM voter_participation_history WHERE cycle_id = $1
+            `, [cycleId]);
+            
             await client.query(`DELETE FROM votes_history WHERE cycle_id = $1`, [cycleId]);
+            await client.query(`DELETE FROM voter_participation_history WHERE cycle_id = $1`, [cycleId]);
         }
         
         await client.query('COMMIT');
@@ -367,36 +453,61 @@ app.get('/voted-voters', async (req, res) => {
         const { constituencyId } = req.query;
         if (!constituencyId) return res.status(400).json({ error: 'Missing constituencyId' });
         const result = await pool.query(`
-            SELECT voter_id FROM votes
-            WHERE candidate_id IN (SELECT id FROM candidates WHERE constituency_id = $1)
+            SELECT voter_id FROM voter_participation
+            WHERE constituency_id = $1
         `, [constituencyId]);
         res.json(result.rows.map(r => r.voter_id));
     } catch (e) { res.status(500).json({ error: 'Database error' }); }
 });
 
 app.post('/cast', async (req, res) => {
+    const client = await pool.connect();
     try {
         const { sessionId, userId, partyId, candidateId } = req.body;
-        if (!sessionId || !userId || !partyId || !candidateId) return res.status(400).json({ error: 'Missing required voting parameters' });
+        if (!sessionId || !userId || !partyId || !candidateId) {
+            return res.status(400).json({ error: 'Missing required voting parameters' });
+        }
 
-        await pool.query(`INSERT INTO votes (session_id, voter_id, party_id, candidate_id) VALUES ($1, $2, $3, $4)`, 
-            [sessionId, userId, partyId, candidateId]);
+        await client.query('BEGIN');
 
+        // 1. Record Participation (identifiable, but separate from the ballot)
+        // This prevents double voting.
+        const candRes = await client.query('SELECT constituency_id FROM candidates WHERE id = $1', [candidateId]);
+        const cId = candRes.rows[0]?.constituency_id;
+        
+        await client.query(`
+            INSERT INTO voter_participation (voter_id, constituency_id) 
+            VALUES ($1, $2)
+        `, [userId, cId]);
+
+        // 2. Record Vote (anonymous)
+        await client.query(`
+            INSERT INTO votes (party_id, candidate_id) 
+            VALUES ($1, $2)
+        `, [partyId, candidateId]);
+
+        await client.query('COMMIT');
+
+        // Invalidate session in Auth service
         try {
             await globalThis.fetch(`${process.env.AUTH_SERVICE_URL || 'http://127.0.0.1:8001'}/complete`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sessionId })
             });
-            res.json({ success: true, message: 'Vote successfully recorded.' });
+            res.json({ success: true, message: 'Vote successfully recorded anonymously.' });
         } catch (e) {
             console.error('Error communicating with verification service:', e);
             res.json({ success: true, message: 'Vote recorded, but session invalidation needs check.' });
         }
     } catch (err) {
-        if (err.code === '23505') { // Postgres unique violation error code
-            return res.status(400).json({ error: 'Vote already cast for this session.' });
+        await client.query('ROLLBACK');
+        if (err.code === '23505') { // Postgres unique violation error code on voter_id
+            return res.status(400).json({ error: 'You have already cast your vote!' });
         }
+        console.error('Cast Error:', err);
         res.status(500).json({ error: 'Failed to record vote' });
+    } finally {
+        client.release();
     }
 });
 
