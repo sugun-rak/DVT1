@@ -96,7 +96,6 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
       if (selectedRole === 'officer') {
           endpoint = '/verification/officer/login';
       } else {
-          // Both admin and superadmin use the admin login for now, we'll verify username
           endpoint = '/verification/admin/login'; 
       }
 
@@ -107,8 +106,6 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
       });
       const data = await res.json();
       if (res.ok) {
-        // Use server-returned role (authoritative) and merge with client username
-        // constituency_id from server JWT is critical for officer actions
         const serverRole = data.role || selectedRole;
         onManagementLogin({ 
           ...data, 
@@ -130,50 +127,70 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
 
   if (view === 'select') {
     return (
-      <div className="animate-fade-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', position: 'relative', padding: '4rem 1rem 2rem 1rem' }}>
-        {/* Stunning Hero Background */}
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.6, zIndex: -1 }}></div>
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'linear-gradient(to bottom, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 1))', zIndex: -1 }}></div>
-
-        {/* Premium Logo and Title */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem', zIndex: 1, padding: '0' }}>
-          <img src={logo} alt="DVT Logo" style={{ height: '80px', marginBottom: '1rem', filter: 'drop-shadow(0 0 20px rgba(56, 189, 248, 0.5))', borderRadius: '15px' }} />
-          <h1 style={{ fontSize: 'clamp(2.5rem, 8vw, 4rem)', fontWeight: '800', background: 'linear-gradient(90deg, #38bdf8, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, letterSpacing: '-1px' }}>
+      <div className="animate-fade-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', position: 'relative', padding: '2rem 1rem' }}>
+        {/* Background Layer */}
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.3, zIndex: -1 }}></div>
+        
+        {/* Main Content Area */}
+        <div style={{ textAlign: 'center', marginBottom: '3rem', zIndex: 1 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100px', height: '100px', borderRadius: '24px', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '1.5rem', boxShadow: '0 0 30px rgba(56, 189, 248, 0.2)' }}>
+              <img src={logo} alt="DVT Logo" style={{ height: '60px', filter: 'drop-shadow(0 0 10px rgba(56, 189, 248, 0.8))' }} />
+          </div>
+          <h1 className="font-heading" style={{ fontSize: 'clamp(3rem, 8vw, 4.5rem)', fontWeight: '800', background: 'linear-gradient(135deg, #fff 0%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
             {t('app_title', 'Digital Voting System')}
           </h1>
-          <p style={{ fontSize: 'clamp(1rem, 4vw, 1.2rem)', color: 'var(--text-secondary)', marginTop: '1rem', maxWidth: '600px', margin: '1rem auto 0' }}>
-            The next generation of secure, verifiable, and transparent democratic technology.
+          <p style={{ fontSize: 'clamp(1.1rem, 4vw, 1.3rem)', color: 'var(--text-secondary)', marginTop: '1rem', maxWidth: '650px', margin: '1.5rem auto 0', lineHeight: 1.6 }}>
+            The next generation of secure, verifiable, and transparent democratic technology. Experience the future of civic participation.
           </p>
         </div>
 
-        {/* Enhanced Glassmorphism Carousel */}
-        <div className="glass-panel" style={{ width: '100%', maxWidth: '900px', padding: '0', display: 'flex', flexWrap: 'wrap', overflow: 'hidden', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', zIndex: 1, marginBottom: '2rem' }}>
-          <div style={{ flex: '1 1 300px', position: 'relative', padding: '2rem', background: 'rgba(0,0,0,0.4)', borderRight: '1px solid rgba(255,255,255,0.05)', minHeight: '280px' }}>
-            <div className="carousel-container" style={{ height: '100%', display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+        {/* Bento Grid layout for Hero section */}
+        <div className="bento-grid" style={{ maxWidth: '1000px', zIndex: 1 }}>
+          
+          {/* Carousel Bento Card */}
+          <div className="glass-panel glow-primary" style={{ position: 'relative', overflow: 'hidden', minHeight: '300px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, position: 'relative' }}>
               {CAROUSEL_SLIDES.map((slide, idx) => (
-                <div key={idx} className={`carousel-slide ${idx === currentSlide ? 'active' : ''}`} style={{ transition: 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)', position: 'absolute', width: '90%', opacity: idx === currentSlide ? 1 : 0 }}>
-                  <h2 style={{ fontSize: 'clamp(1.5rem, 5vw, 2rem)', color: '#fff', marginBottom: '0.8rem', fontWeight: 'bold' }}>{slide.title}</h2>
-                  <p style={{ fontSize: 'clamp(0.9rem, 3vw, 1.1rem)', color: 'rgba(255,255,255,0.8)', lineHeight: '1.5' }}>{slide.text}</p>
+                <div key={idx} style={{ 
+                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
+                    padding: '3rem', display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                    opacity: idx === currentSlide ? 1 : 0, transition: 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+                    pointerEvents: idx === currentSlide ? 'auto' : 'none'
+                }}>
+                  <div style={{ width: '40px', height: '4px', background: 'var(--primary-color)', marginBottom: '1.5rem', borderRadius: '2px', boxShadow: '0 0 10px var(--primary-color)' }}></div>
+                  <h2 className="font-heading" style={{ fontSize: 'clamp(1.8rem, 5vw, 2.2rem)', color: '#fff', marginBottom: '1rem', fontWeight: '800' }}>{slide.title}</h2>
+                  <p style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.6' }}>{slide.text}</p>
                 </div>
               ))}
             </div>
-            {/* Carousel Indicators */}
-            <div style={{ position: 'absolute', bottom: '1.5rem', left: '2rem', display: 'flex', gap: '8px' }}>
+            {/* Indicators */}
+            <div style={{ padding: '1.5rem 3rem', display: 'flex', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.2)' }}>
               {CAROUSEL_SLIDES.map((_, idx) => (
-                <div key={idx} style={{ height: '4px', width: idx === currentSlide ? '32px' : '16px', background: idx === currentSlide ? '#38bdf8' : 'rgba(255,255,255,0.2)', borderRadius: '2px', transition: 'all 0.4s ease' }} />
+                <div key={idx} style={{ height: '4px', width: idx === currentSlide ? '32px' : '16px', background: idx === currentSlide ? 'var(--primary-color)' : 'rgba(255,255,255,0.2)', borderRadius: '2px', transition: 'all 0.4s ease' }} />
               ))}
             </div>
           </div>
 
-          <div style={{ flex: '1 1 300px', padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'rgba(255,255,255,0.03)' }}>
-            <h3 style={{ fontSize: 'clamp(1rem, 3vw, 1.2rem)', color: '#fff', marginBottom: '1.5rem', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8 }}>{t('select_portal', 'Select Portal')}</h3>
-            <button className="btn btn-primary" onClick={onEnterPublicVoting} style={{ padding: '1.2rem', fontSize: '1.1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', background: 'linear-gradient(135deg, #0284c7, #3b82f6)', border: 'none', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)', borderRadius: '12px', transition: 'transform 0.2s, box-shadow 0.2s' }}>
-              <span style={{ fontSize: '1.4rem' }}>🗳️</span> {t('public_voting_booth', 'Public Voting Booth')}
+          {/* Actions Bento Card */}
+          <div className="glass-panel glow-success" style={{ padding: '3rem 2.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
+            <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
+                <span className="metric-label" style={{ color: 'var(--primary-color)' }}>{t('select_portal', 'Access Portal')}</span>
+            </div>
+            
+            <button className="btn btn-primary" onClick={onEnterPublicVoting} style={{ padding: '1.2rem', fontSize: '1.1rem', marginBottom: '1.5rem', width: '100%', borderRadius: '16px' }}>
+              <span style={{ fontSize: '1.5rem' }}>🗳️</span> {t('public_voting_booth', 'Public Voting Booth')}
             </button>
-            <button className="btn btn-secondary" onClick={() => { setView('role_select'); setError(null); }} style={{ padding: '1.2rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', transition: 'transform 0.2s, background 0.2s' }}>
-              <span style={{ fontSize: '1.4rem' }}>📊</span> {t('management_portal', 'Management Portal')}
+            
+            <div style={{ position: 'relative', textAlign: 'center', marginBottom: '1.5rem' }}>
+                <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                <span style={{ position: 'relative', background: '#0f172a', padding: '0 1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>ADMINISTRATION</span>
+            </div>
+
+            <button className="btn btn-secondary" onClick={() => { setView('role_select'); setError(null); }} style={{ padding: '1.2rem', fontSize: '1.1rem', width: '100%', borderRadius: '16px' }}>
+              <span style={{ fontSize: '1.5rem' }}>🛡️</span> {t('management_portal', 'Management Portal')}
             </button>
           </div>
+          
         </div>
       </div>
     );
@@ -181,25 +198,27 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
 
   if (view === 'role_select') {
       return (
-          <div className="glass-panel animate-fade-in" style={{ padding: '2rem', maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
-              <button className="btn-secondary" onClick={() => setView('select')} style={{ padding: '0.2rem 0.5rem', marginBottom: '1rem', float: 'left' }}>←</button>
-              <h2 style={{ marginBottom: '1.5rem', clear: 'both' }}>{t('select_management_role', 'Select Management Role')}</h2>
+          <div className="glass-panel animate-fade-in glow-primary" style={{ padding: '2.5rem', maxWidth: '450px', margin: '0 auto', textAlign: 'center', marginTop: '10vh' }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem' }}>
+                  <button className="btn btn-secondary" onClick={() => setView('select')} style={{ padding: '0.5rem 1rem', borderRadius: '100px' }}>⬅️ Back</button>
+                  <h2 className="font-heading" style={{ flex: 1, margin: 0, textAlign: 'center' }}>{t('select_management_role', 'Select Role')}</h2>
+              </div>
               
-              <div className="input-group">
-                  <label>{t('role', 'Role')}</label>
-                  <select className="input-field" value={selectedRole} onChange={e => { setSelectedRole(e.target.value); setPinUser(''); setError(null); }}>
-                      <option value="">-- {t('role', 'Role')} --</option>
-                      <option value="officer">{t('polling_officer', 'Polling Officer')}</option>
-                      <option value="admin">{t('general_admin', 'General Admin')}</option>
-                      <option value="superadmin">{t('super_admin', 'Super Admin')}</option>
+              <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+                  <label className="metric-label">{t('role', 'System Role')}</label>
+                  <select className="input-field" value={selectedRole} onChange={e => { setSelectedRole(e.target.value); setPinUser(''); setError(null); }} style={{ borderRadius: '12px', padding: '1.2rem' }}>
+                      <option value="">-- {t('role', 'Select Role')} --</option>
+                      <option value="officer">🛂 {t('polling_officer', 'Polling Officer')}</option>
+                      <option value="admin">🛡️ {t('general_admin', 'General Admin')}</option>
+                      <option value="superadmin">👑 {t('super_admin', 'Super Admin')}</option>
                   </select>
               </div>
 
               {selectedRole === 'officer' && (
-                  <div className="input-group">
-                      <label>{t('assigned_area', 'Assigned Area (Constituency)')}</label>
-                      <select className="input-field" value={pinUser} onChange={e => setPinUser(e.target.value)}>
-                          <option value="">{t('choose_constituency', '-- Choose Constituency --')}</option>
+                  <div className="animate-fade-in" style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+                      <label className="metric-label">{t('assigned_area', 'Assigned Constituency')}</label>
+                      <select className="input-field" value={pinUser} onChange={e => setPinUser(e.target.value)} style={{ borderRadius: '12px', padding: '1.2rem' }}>
+                          <option value="">{t('choose_constituency', '-- Select Area --')}</option>
                           {constituencies.map(c => (
                               <option key={c.id} value={`officer_${c.id}`}>{c.name}</option>
                           ))}
@@ -207,14 +226,14 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
                   </div>
               )}
 
-              {error && <p style={{ color: 'var(--error-color)', marginTop: '1rem' }}>{error}</p>}
+              {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', color: '#fca5a5', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.9rem' }}>{error}</div>}
               
-              <button className="btn btn-primary" onClick={proceedToLogin} style={{ width: '100%', marginTop: '1.5rem' }}>{t('proceed', 'Proceed')}</button>
+              <button className="btn btn-primary" onClick={proceedToLogin} style={{ width: '100%', padding: '1.2rem', borderRadius: '16px', fontSize: '1.1rem' }}>{t('proceed', 'Proceed to Authentication')}</button>
               
-              <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.8rem' }}>Beta Testing Program</p>
-                  <button className="btn btn-secondary" onClick={() => setView('guest_register')} style={{ width: '100%', fontSize: '0.9rem', padding: '0.8rem' }}>
-                    Register for Guest Access
+              <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  <p className="metric-label" style={{ color: 'var(--primary-color)', marginBottom: '1rem' }}>Beta Testing Program</p>
+                  <button className="btn btn-secondary" onClick={() => setView('guest_register')} style={{ width: '100%', padding: '1rem', borderRadius: '12px' }}>
+                    Request Guest Access
                   </button>
               </div>
           </div>
@@ -227,39 +246,41 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
 
   if (view === 'login') {
     return (
-      <div className="glass-panel animate-fade-in" style={{ padding: '2rem', maxWidth: '350px', margin: '0 auto', textAlign: 'center' }}>
-        <button className="btn-secondary" onClick={() => setView('role_select')} style={{ padding: '0.2rem 0.5rem', marginBottom: '1rem', float: 'left' }}>←</button>
-        <h2 style={{ marginBottom: '1.5rem', clear: 'both' }}>{selectedRole === 'officer' ? t('officer_setup', 'Officer Setup') : t('admin_login', 'Admin Login')}</h2>
+      <div className="glass-panel animate-fade-in glow-primary" style={{ padding: '2.5rem', maxWidth: '400px', margin: '0 auto', textAlign: 'center', marginTop: '10vh' }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem' }}>
+            <button className="btn btn-secondary" onClick={() => setView('role_select')} style={{ padding: '0.5rem 1rem', borderRadius: '100px' }}>⬅️ Back</button>
+            <h2 className="font-heading" style={{ flex: 1, margin: 0 }}>{selectedRole === 'officer' ? t('officer_setup', 'Kiosk Setup') : t('admin_login', 'Admin Access')}</h2>
+        </div>
         
-        <div className="input-group">
-            <label>{selectedRole === 'officer' ? t('assigned_area_id', 'Assigned Area ID') : t('username', 'Username')}</label>
-            <input type="text" className="input-field" value={pinUser} disabled />
+        <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+            <label className="metric-label">{selectedRole === 'officer' ? t('assigned_area_id', 'Assigned Area ID') : t('username', 'Username')}</label>
+            <input type="text" className="input-field" value={pinUser} disabled style={{ background: 'rgba(0,0,0,0.5)', opacity: 0.7 }} />
         </div>
 
-        <div className="input-group">
-          <label>{t('enter_pin', 'Enter PIN')}</label>
+        <div style={{ textAlign: 'left', marginBottom: '2rem' }}>
+          <label className="metric-label">{t('enter_pin', 'Secure PIN')}</label>
           <div className="input-field" style={{ 
-            fontSize: '2rem', letterSpacing: '10px', height: '50px', 
+            fontSize: '2.5rem', letterSpacing: '12px', height: '70px', 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            borderColor: 'var(--primary-color)', boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.2)',
-            marginBottom: '1rem', background: 'rgba(255,255,255,0.05)'
+            borderColor: pinValue.length === 4 ? 'var(--success-color)' : 'var(--primary-color)', 
+            boxShadow: `0 0 20px ${pinValue.length === 4 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.1)'}`,
+            background: 'rgba(0,0,0,0.3)', borderRadius: '16px', fontFamily: 'Outfit', fontWeight: '800'
           }}>
             {pinValue.split('').map(() => '•').join('')}
-            {pinValue.length < 4 && <span className="cursor-blink" style={{ width: '2px', height: '30px', background: 'var(--primary-color)', marginLeft: '5px', animation: 'blink 1s step-end infinite' }}></span>}
+            {pinValue.length < 4 && <span style={{ width: '3px', height: '35px', background: 'var(--primary-color)', marginLeft: '8px', animation: 'blink 1s step-end infinite' }}></span>}
           </div>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>(You can use your physical keyboard)</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '1.5rem' }}>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-            <button key={num} type="button" className="btn btn-secondary" onClick={() => handlePinDigit(num.toString())} style={{ padding: '1rem', fontSize: '1.2rem' }}>{num}</button>
+            <button key={num} type="button" className="btn btn-secondary" onClick={() => handlePinDigit(num.toString())} style={{ padding: '1.2rem', fontSize: '1.5rem', borderRadius: '12px', background: 'rgba(255,255,255,0.03)' }}>{num}</button>
           ))}
-          <button type="button" className="btn btn-secondary" onClick={handlePinDelete} style={{ padding: '1rem', fontSize: '1.2rem' }}>⌫</button>
-          <button type="button" className="btn btn-secondary" onClick={() => handlePinDigit('0')} style={{ padding: '1rem', fontSize: '1.2rem' }}>0</button>
-          <button type="button" className="btn btn-primary" onClick={submitLogin} disabled={loading || pinValue.length !== 4} style={{ padding: '1rem', fontSize: '1.2rem' }}>✓</button>
+          <button type="button" className="btn btn-secondary" onClick={handlePinDelete} style={{ padding: '1.2rem', fontSize: '1.2rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5' }}>⌫</button>
+          <button type="button" className="btn btn-secondary" onClick={() => handlePinDigit('0')} style={{ padding: '1.2rem', fontSize: '1.5rem', borderRadius: '12px', background: 'rgba(255,255,255,0.03)' }}>0</button>
+          <button type="button" className="btn btn-primary" onClick={submitLogin} disabled={loading || pinValue.length !== 4} style={{ padding: '1.2rem', fontSize: '1.5rem', borderRadius: '12px' }}>✓</button>
         </div>
 
-        {error && <p style={{ color: 'var(--error-color)', marginBottom: '1rem', fontSize: '0.9rem' }}>{error}</p>}
+        {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', color: '#fca5a5', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem' }}>{error}</div>}
       </div>
     );
   }

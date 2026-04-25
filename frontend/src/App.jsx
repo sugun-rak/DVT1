@@ -158,21 +158,21 @@ function App() {
       t('fact_4', 'Establishing encrypted tunnels to distributed server clusters...')
     ];
     return (
-      <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center', background: 'linear-gradient(to bottom, #0f172a, #020617)' }}>
-        <div style={{ textAlign: 'center', maxWidth: '600px', padding: '2rem' }}>
+      <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center' }}>
+        <div className="glass-panel animate-fade-in glow-primary" style={{ textAlign: 'center', maxWidth: '600px', padding: '3rem 2rem', borderRadius: '24px' }}>
           <div className="scanner-line" style={{ position: 'relative', width: '200px', height: '4px', background: 'rgba(56, 189, 248, 0.2)', margin: '0 auto 3rem auto', overflow: 'hidden', borderRadius: '2px' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: '#38bdf8', animation: 'slide 1.5s infinite ease-in-out' }}></div>
+            <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '30%', background: '#38bdf8', animation: 'slide 1.5s infinite ease-in-out', boxShadow: '0 0 20px #38bdf8' }}></div>
           </div>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem', background: 'linear-gradient(90deg, #38bdf8, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h1 className="font-heading" style={{ fontSize: '2.5rem', marginBottom: '1.5rem', fontWeight: 800, background: 'linear-gradient(135deg, #fff 0%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             {t('connecting_secure', 'Establishing Secure Connection...')}
           </h1>
-          <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', minHeight: '60px', transition: 'opacity 0.5s' }}>
+          <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', minHeight: '60px', transition: 'opacity 0.5s', lineHeight: 1.6 }}>
             {loadingFacts[factIndex]}
           </p>
           {wakeTimeout && (
-            <div className="animate-fade-in" style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px' }}>
-              <p style={{ color: '#fcd34d', margin: 0, fontSize: '0.9rem' }}>
-                <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>⏳</span>
+            <div className="animate-fade-in" style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '12px' }}>
+              <p style={{ color: '#fcd34d', margin: 0, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'left' }}>
+                <span style={{ fontSize: '1.5rem' }}>⏳</span>
                 {t('waking_backend', 'Waking up secure environment. This may take up to 60 seconds on the first load to initialize cold storage...')}
               </p>
             </div>

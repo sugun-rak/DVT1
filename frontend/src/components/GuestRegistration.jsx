@@ -7,9 +7,8 @@ export default function GuestRegistration({ onBack }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [guestPins, setGuestPins] = useState(null);
-  const [countdown, setCountdown] = useState(null); // seconds remaining
+  const [countdown, setCountdown] = useState(null);
 
-  // Countdown timer — starts when PINs are received
   useEffect(() => {
     if (!guestPins?.expiresAt) return;
 
@@ -31,19 +30,17 @@ export default function GuestRegistration({ onBack }) {
   };
 
   const countdownColor = countdown !== null
-    ? countdown > 300 ? '#22c55e'    // > 5 min → green
-    : countdown > 120 ? '#f59e0b'    // > 2 min → amber
-    : '#ef4444'                       // ≤ 2 min → red
-    : '#22c55e';
+    ? countdown > 300 ? 'var(--success-color)'
+    : countdown > 120 ? 'var(--warning-color)'
+    : 'var(--error-color)'
+    : 'var(--success-color)';
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    // Capture guest's browser timezone and UTC offset
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    // getTimezoneOffset() returns e.g. -330 for IST (UTC+5:30); negate to get +330
     const timezoneOffsetMinutes = -(new Date().getTimezoneOffset());
 
     try {
@@ -56,7 +53,6 @@ export default function GuestRegistration({ onBack }) {
       
       if (res.ok) {
         setGuestPins(data);
-        // Save guest info in sessionStorage (tab-isolated — not shared with other tabs)
         sessionStorage.setItem('dvt_guest_info', JSON.stringify({ email, name, timezone, timezoneOffsetMinutes, expiresAt: data.expiresAt }));
       } else {
         setError(data.error || 'Failed to register guest session');
@@ -68,108 +64,113 @@ export default function GuestRegistration({ onBack }) {
   };
 
   return (
-    <div className="glass-panel animate-fade-in" style={{ padding: '2rem', maxWidth: '500px', width: '100%' }}>
-      <h2 style={{ marginBottom: '0.5rem', textAlign: 'center' }}>Beta Tester Registration</h2>
+    <div className="glass-panel animate-fade-in glow-primary" style={{ padding: '2.5rem', maxWidth: '500px', width: '100%', margin: '0 auto', marginTop: '10vh' }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem' }}>
+          <button className="btn btn-secondary" onClick={onBack} style={{ padding: '0.5rem 1rem', borderRadius: '100px' }}>⬅️ Back</button>
+          <h2 className="font-heading" style={{ flex: 1, margin: 0, textAlign: 'center' }}>Demo Access</h2>
+      </div>
       
       {!guestPins ? (
-        <form onSubmit={handleRegister}>
-          <p style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
+        <form onSubmit={handleRegister} className="animate-fade-in">
+          <p style={{ marginBottom: '2rem', color: 'var(--text-secondary)', fontSize: '0.95rem', textAlign: 'center', lineHeight: 1.6 }}>
             Register to receive temporary 15-minute PINs to test all 3 management roles across the entire DVS platform.
-            <br /><span style={{ color: '#38bdf8', fontSize: '0.82rem' }}>📧 PINs will also be sent to your email inbox.</span>
+            <br /><span style={{ color: 'var(--primary-color)', fontSize: '0.85rem', fontWeight: 'bold' }}>📧 PINs will also be emailed to you.</span>
           </p>
           
-          <div className="input-group">
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label className="metric-label">Full Name</label>
             <input 
               type="text" 
               className="input-field" 
-              placeholder="Your Name" 
+              placeholder="e.g. Jane Doe" 
               value={name} 
               onChange={e => setName(e.target.value)} 
               required 
             />
           </div>
-          <div className="input-group">
+          <div style={{ marginBottom: '2rem' }}>
+            <label className="metric-label">Email Address</label>
             <input 
               type="email" 
               className="input-field" 
-              placeholder="Your Email (PINs will be sent here)" 
+              placeholder="e.g. jane@example.com" 
               value={email} 
               onChange={e => setEmail(e.target.value)} 
               required 
             />
           </div>
           
-          {error && <div style={{ color: 'var(--error-color)', marginBottom: '1rem', padding: '0.8rem', background: 'rgba(239,68,68,0.1)', borderRadius: '6px' }}>{error}</div>}
+          {error && <div style={{ color: '#fca5a5', marginBottom: '1.5rem', padding: '1rem', background: 'rgba(239,68,68,0.1)', border: '1px solid var(--error-color)', borderRadius: '8px', fontSize: '0.9rem' }}>{error}</div>}
           
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginBottom: '1rem', padding: '1rem' }} disabled={loading}>
-            {loading ? '⏳ Generating Your Demo Access...' : '🔑 Get Demo Access — All 3 Roles'}
-          </button>
-          
-          <button type="button" className="btn btn-secondary" style={{ width: '100%' }} onClick={onBack}>
-            ← Back to Login
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', borderRadius: '16px', fontSize: '1.1rem' }} disabled={loading}>
+            {loading ? '⏳ Generating Access...' : '🔑 Request Global Access'}
           </button>
         </form>
       ) : (
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ background: 'rgba(34, 197, 94, 0.1)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--success-color)', marginBottom: '1rem' }}>
-            <h3 style={{ color: 'var(--success-color)', margin: '0 0 0.3rem 0' }}>✅ Demo Session Active</h3>
-            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>All 3 PINs work app-wide. Check your email inbox for a copy.</p>
-            {/* Countdown Timer */}
+        <div className="animate-fade-in" style={{ textAlign: 'center' }}>
+          <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--success-color)', marginBottom: '1.5rem', boxShadow: '0 0 20px rgba(16, 185, 129, 0.1)' }}>
+            <h3 className="font-heading" style={{ color: 'var(--success-color)', margin: '0 0 0.5rem 0' }}>✅ Active Session</h3>
+            <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Check your email inbox for a copy.</p>
+            
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-              background: 'rgba(0,0,0,0.4)', padding: '0.4rem 1.2rem', borderRadius: '20px',
+              background: 'rgba(0,0,0,0.5)', padding: '0.5rem 1.5rem', borderRadius: '100px',
               border: `1px solid ${countdownColor}`
             }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>⏱ Expires in:</span>
-              <span style={{ fontFamily: 'monospace', fontSize: '1.3rem', fontWeight: 'bold', color: countdownColor, letterSpacing: '2px' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>⏱ Expires in:</span>
+              <span className="font-heading" style={{ fontSize: '1.5rem', fontWeight: '800', color: countdownColor, letterSpacing: '2px' }}>
                 {formatCountdown(countdown)}
               </span>
             </div>
           </div>
 
           {countdown === 0 && (
-            <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid #ef4444', borderRadius: '8px', padding: '0.8rem', marginBottom: '1rem' }}>
+            <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid var(--error-color)', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem' }}>
               <p style={{ color: '#fca5a5', margin: 0, fontSize: '0.9rem' }}>⛔ Session expired. Please request new access.</p>
             </div>
           )}
 
           {/* Super Admin PIN */}
-          <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1rem', borderRadius: '8px', marginBottom: '0.8rem', textAlign: 'left', border: '1px solid rgba(168, 85, 247, 0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-              <p style={{ margin: 0, color: '#a855f7', fontSize: '0.72rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>👑 Super Admin</p>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(168,85,247,0.15)', padding: '2px 8px', borderRadius: '20px' }}>Live Results & Stats</span>
+          <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px', marginBottom: '1rem', textAlign: 'left', border: '1px solid rgba(168, 85, 247, 0.3)', background: 'rgba(168, 85, 247, 0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <p style={{ margin: 0, color: '#c084fc', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>👑 Super Admin</p>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(168,85,247,0.15)', padding: '2px 8px', borderRadius: '100px' }}>Global Insights</span>
             </div>
-            <p style={{ margin: '0 0 0.3rem 0', fontSize: '0.9rem' }}>Username: <strong>superadmin</strong></p>
-            <p style={{ margin: 0 }}>PIN: <strong style={{ letterSpacing: '4px', color: '#a855f7', fontSize: '1.5rem', fontFamily: 'monospace' }}>{guestPins.superadminPin}</strong></p>
+            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>User: <strong style={{ color: 'white' }}>superadmin</strong></p>
+            <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span className="metric-label" style={{ margin: 0 }}>PIN:</span>
+                <strong style={{ letterSpacing: '8px', color: '#c084fc', fontSize: '1.8rem', fontFamily: 'Outfit' }}>{guestPins.superadminPin}</strong>
+            </p>
           </div>
 
           {/* General Admin PIN */}
-          <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1rem', borderRadius: '8px', marginBottom: '0.8rem', textAlign: 'left', border: '1px solid rgba(56, 189, 248, 0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-              <p style={{ margin: 0, color: 'var(--primary-color)', fontSize: '0.72rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>🛡️ General Admin</p>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(56,189,248,0.15)', padding: '2px 8px', borderRadius: '20px' }}>Machine Health</span>
+          <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px', marginBottom: '1rem', textAlign: 'left', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'rgba(56, 189, 248, 0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <p style={{ margin: 0, color: 'var(--primary-color)', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>🛡️ General Admin</p>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(56,189,248,0.15)', padding: '2px 8px', borderRadius: '100px' }}>System Health</span>
             </div>
-            <p style={{ margin: '0 0 0.3rem 0', fontSize: '0.9rem' }}>Username: <strong>admin</strong></p>
-            <p style={{ margin: 0 }}>PIN: <strong style={{ letterSpacing: '4px', color: 'var(--primary-color)', fontSize: '1.5rem', fontFamily: 'monospace' }}>{guestPins.adminPin}</strong></p>
+            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>User: <strong style={{ color: 'white' }}>admin</strong></p>
+            <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span className="metric-label" style={{ margin: 0 }}>PIN:</span>
+                <strong style={{ letterSpacing: '8px', color: 'var(--primary-color)', fontSize: '1.8rem', fontFamily: 'Outfit' }}>{guestPins.adminPin}</strong>
+            </p>
           </div>
 
-          {/* Polling Officer PIN — Universal */}
-          <div style={{ background: 'rgba(0,0,0,0.4)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', textAlign: 'left', border: '1px solid rgba(34, 197, 94, 0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-              <p style={{ margin: 0, color: 'var(--success-color)', fontSize: '0.72rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>🗳️ Polling Officer</p>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', background: 'rgba(34,197,94,0.15)', padding: '2px 8px', borderRadius: '20px' }}>✅ Any Constituency</span>
+          {/* Polling Officer PIN */}
+          <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px', marginBottom: '2rem', textAlign: 'left', border: '1px solid rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <p style={{ margin: 0, color: 'var(--success-color)', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>🛂 Polling Officer</p>
+              <span style={{ fontSize: '0.7rem', color: 'var(--success-color)', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '100px' }}>Universal Access</span>
             </div>
-            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Username: <strong style={{ color: 'white' }}>officer_[any area]</strong> — pick any constituency from the dropdown
-            </p>
-            <p style={{ margin: 0 }}>PIN: <strong style={{ letterSpacing: '4px', color: 'var(--success-color)', fontSize: '1.5rem', fontFamily: 'monospace' }}>{guestPins.officerPin}</strong></p>
-            <p style={{ margin: '0.6rem 0 0 0', fontSize: '0.78rem', color: '#86efac' }}>
-              💡 This PIN works for <em>every</em> constituency — just like the owner's permanent PIN works for all areas.
+            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>User: <strong style={{ color: 'white' }}>officer_[any]</strong></p>
+            <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span className="metric-label" style={{ margin: 0 }}>PIN:</span>
+                <strong style={{ letterSpacing: '8px', color: 'var(--success-color)', fontSize: '1.8rem', fontFamily: 'Outfit' }}>{guestPins.officerPin}</strong>
             </p>
           </div>
           
-          <button type="button" className="btn btn-primary" style={{ width: '100%', padding: '1rem' }} onClick={onBack}>
-            ← Proceed to Login
+          <button type="button" className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', borderRadius: '16px', fontSize: '1.1rem' }} onClick={onBack}>
+            Proceed to Login
           </button>
         </div>
       )}

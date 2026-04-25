@@ -19,6 +19,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   const [selectedConstituency, setSelectedConstituency] = useState('');
   
   // Advanced Filtering
+  const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({ state: '', party: '', status: 'all' });
 
   // Officer Session State
@@ -67,16 +68,15 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
     if (isPollingRef.current) return;
     isPollingRef.current = true;
     try {
-      // 1. Fetch Election Stats (Super Admin & Global Stats)
-      const statsUrl = selectedConstituency 
-        ? `${API_URL}/voting/stats?constituencyId=${selectedConstituency}`
-        : `${API_URL}/voting/stats`;
-      const statsRes = await fetchWithBackoff(statsUrl);
-      if (statsRes.ok) setStats(await statsRes.json());
+      if (role === 'superadmin') {
+        const statsUrl = selectedConstituency 
+          ? `${API_URL}/voting/stats?constituencyId=${selectedConstituency}`
+          : `${API_URL}/voting/stats`;
+        const statsRes = await fetchWithBackoff(statsUrl);
+        if (statsRes.ok) setStats(await statsRes.json());
+      }
 
-      // 2. Role Specific Data
       if (role === 'admin') {
-        // Optimized Batch Health Fetch (1 request instead of N)
         const [cRes, hRes] = await Promise.all([
           fetchWithBackoff(`${API_URL}/voting/constituencies`),
           fetchWithBackoff(`${API_URL}/verification/officer/status-batch`, { headers: authHeaders })
@@ -87,7 +87,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
           const merged = cData.map(c => ({
             ...c,
             ...(hMap[c.id] || { is_active: false, ballot_enabled: false }),
-            total_votes: 0 // We'd need another batch endpoint for votes to be perfect, but this is already 10x faster
+            total_votes: 0 
           }));
           setHealthData(merged);
         }
@@ -215,9 +215,14 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
     setOfficerLoading(false);
   };
 
-  // Filtering Logic
+  // --- FILTERING LOGIC ---
+  const query = searchQuery.toLowerCase();
+  
   const filteredStandings = stats.party_stats?.filter(s => {
       if (filters.party && s.party_name !== filters.party) return false;
+      if (query && !s.party_name.toLowerCase().includes(query) && 
+                   !s.candidate_name?.toLowerCase().includes(query) && 
+                   !s.constituency_name?.toLowerCase().includes(query)) return false;
       return true;
   });
 
@@ -225,210 +230,337 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
       if (filters.state && c.state_id !== filters.state) return false;
       if (filters.status === 'online' && !c.is_active) return false;
       if (filters.status === 'offline' && c.is_active) return false;
+      if (query && !c.name.toLowerCase().includes(query) && !c.id.toLowerCase().includes(query)) return false;
       return true;
   });
 
   const currentArea = constituencies.find(c => c.id === constituency_id);
+  const leadingParty = stats.party_stats && stats.party_stats.length > 0 ? stats.party_stats[0] : null;
+  const onlineMachinesCount = healthData.filter(h => h.is_active).length;
 
   return (
-    <div className="glass-panel animate-fade-in" style={{ padding: '2rem', maxWidth: '1200px', width: '100%', margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div>
-            <h2 style={{ margin: 0 }}>Management Portal</h2>
-            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                Role: <strong style={{ color: 'var(--primary-color)' }}>{role.toUpperCase()}</strong>
-                {constituency_id && (
-                    <> | Area: <strong style={{ color: 'var(--text-primary)' }}>{constituency_id.toUpperCase()}</strong> ({currentArea?.name || 'Loading...'})</>
-                )}
-            </p>
+    <div style={{ padding: '2rem', maxWidth: '1400px', width: '100%', margin: '0 auto', overflow: 'hidden' }}>
+      
+      {/* 🔮 GLOBAL HEADER */}
+      <div className="glass-panel animate-fade-in" style={{ padding: '1.5rem 2.5rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '100px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color), var(--accent-color))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', boxShadow: '0 0 20px rgba(56, 189, 248, 0.4)' }}>
+                {role === 'superadmin' ? '👑' : role === 'admin' ? '🛡️' : '🛂'}
+            </div>
+            <div>
+                <h2 style={{ margin: 0, fontSize: '1.2rem', letterSpacing: '1px', textTransform: 'uppercase' }}>Command Center</h2>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--primary-color)', fontWeight: 'bold' }}>{role.toUpperCase()}</span>
+                    {constituency_id && (
+                        <>
+                            <span>•</span>
+                            <span style={{ color: 'white' }}>{currentArea?.name || constituency_id}</span>
+                            <code style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px' }}>{constituency_id}</code>
+                        </>
+                    )}
+                </div>
+            </div>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-            <button className="btn btn-secondary" onClick={onBack}>⬅️ Back</button>
-            <button className="btn btn-secondary" onClick={onLogout} style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--error-color)', borderColor: 'var(--error-color)' }}>⏏️ Logout</button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+            <button className="btn btn-secondary" onClick={onBack} style={{ borderRadius: '100px' }}>⬅️ Back</button>
+            <button className="btn btn-secondary" onClick={onLogout} style={{ borderRadius: '100px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error-color)', borderColor: 'rgba(239, 68, 68, 0.3)' }}>⏏️ Logout</button>
         </div>
       </div>
 
-      {/* Role-Based Content */}
+      {/* 👑 SUPER ADMIN BENTO DASHBOARD */}
       {role === 'superadmin' && (
         <div className="animate-fade-in">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-            <div className="glass-panel" style={{ padding: '1.5rem' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>Total Votes Cast</p>
-              <h2 style={{ color: 'var(--primary-color)', margin: 0 }}>{stats.total_votes}</h2>
+          <div className="bento-grid" style={{ marginBottom: '1.5rem' }}>
+            {/* Bento 1: Total Votes */}
+            <div className="glass-panel glow-primary animate-float" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div className="metric-label">Total Valid Votes</div>
+              <div className="metric-value primary">{stats.total_votes.toLocaleString()}</div>
+              <div style={{ marginTop: '1rem', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: '100%', background: 'var(--primary-color)' }}></div>
+              </div>
             </div>
-            <div className="glass-panel" style={{ padding: '1.5rem' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>Verified Participation</p>
-              <h2 style={{ color: 'var(--success-color)', margin: 0 }}>{stats.participation_count}</h2>
+
+            {/* Bento 2: Turnout / Participation */}
+            <div className="glass-panel glow-success animate-float" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', animationDelay: '0.2s' }}>
+              <div className="metric-label">Verified Participation</div>
+              <div className="metric-value success">{stats.participation_count.toLocaleString()}</div>
+              <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${stats.total_votes > 0 ? (stats.participation_count/stats.total_votes)*100 : 0}%`, background: 'var(--success-color)', transition: 'width 1s' }}></div>
+                  </div>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--success-color)', fontWeight: 'bold' }}>
+                      {stats.total_votes > 0 ? ((stats.participation_count / stats.total_votes) * 100).toFixed(1) : 0}% Yield
+                  </span>
+              </div>
             </div>
-            <div className="glass-panel" style={{ padding: '1.5rem' }}>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.5rem' }}>Global Turnout</p>
-              <h2 style={{ color: 'var(--warning-color)', margin: 0 }}>{stats.total_votes > 0 ? ((stats.participation_count / stats.total_votes) * 100).toFixed(1) : 0}%</h2>
+
+            {/* Bento 3: Leading Party Insight */}
+            <div className="glass-panel glow-warning animate-float" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', animationDelay: '0.4s' }}>
+              <div className="metric-label">Current Leader</div>
+              {leadingParty ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                      <div style={{ fontSize: '4rem', filter: 'drop-shadow(0 0 10px rgba(245, 158, 11, 0.4))' }}>{leadingParty.symbol}</div>
+                      <div>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--warning-color)' }}>{leadingParty.party_name}</div>
+                          <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{leadingParty.vote_count.toLocaleString()} votes</div>
+                      </div>
+                  </div>
+              ) : (
+                  <div style={{ color: 'var(--text-secondary)' }}>Awaiting Data...</div>
+              )}
             </div>
           </div>
 
-          <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <span>🔍 Filters:</span>
-              <select className="input-field" style={{ width: 'auto' }} value={selectedConstituency} onChange={e => setSelectedConstituency(e.target.value)}>
-                <option value="">All Areas (Global)</option>
+          {/* Super Admin Toolbar */}
+          <div className="glass-panel" style={{ padding: '1rem 1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', background: 'rgba(0,0,0,0.4)' }}>
+              <div style={{ flex: 1, minWidth: '250px', position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+                  <input type="text" className="input-field" placeholder="Search party, candidate, or area..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: '2.5rem', borderRadius: '100px' }} />
+              </div>
+              <select className="input-field" style={{ width: 'auto', borderRadius: '100px' }} value={selectedConstituency} onChange={e => setSelectedConstituency(e.target.value)}>
+                <option value="">🌍 Global View</option>
                 {constituencies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              <select className="input-field" style={{ width: 'auto' }} value={filters.party} onChange={e => setFilters({...filters, party: e.target.value})}>
-                <option value="">All Parties</option>
+              <select className="input-field" style={{ width: 'auto', borderRadius: '100px' }} value={filters.party} onChange={e => setFilters({...filters, party: e.target.value})}>
+                <option value="">🏛️ All Parties</option>
                 {parties.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
               </select>
           </div>
 
-          <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
-            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-              <thead style={{ background: 'rgba(255,255,255,0.05)' }}>
+          {/* Standings Table */}
+          <div className="glass-panel" style={{ padding: 0, overflowX: 'auto' }}>
+            <table className="bento-table">
+              <thead>
                 <tr>
-                  <th style={{ padding: '1rem' }}>Symbol</th>
-                  <th style={{ padding: '1rem' }}>Party & Candidate</th>
-                  <th style={{ padding: '1rem' }}>Area</th>
-                  <th style={{ padding: '1rem' }}>Vote Share</th>
-                  <th style={{ padding: '1rem', textAlign: 'right' }}>Total Votes</th>
+                  <th style={{ width: '80px', textAlign: 'center' }}>Sym</th>
+                  <th>Candidate & Party</th>
+                  <th>Area</th>
+                  <th style={{ width: '30%' }}>Vote Share</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStandings?.map((stat, i) => {
                   const percentage = stats.total_votes > 0 ? ((stat.vote_count / stats.total_votes) * 100).toFixed(1) : 0;
                   return (
-                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <td style={{ padding: '1rem', fontSize: '2rem' }}>{stat.symbol}</td>
-                      <td style={{ padding: '1rem' }}>
-                        <div style={{ fontWeight: 'bold' }}>{stat.party_name}</div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{stat.candidate_name}</div>
+                    <tr key={i}>
+                      <td style={{ fontSize: '2rem', textAlign: 'center' }}>{stat.symbol}</td>
+                      <td>
+                        <div style={{ fontWeight: '600', color: 'white', fontSize: '1.05rem' }}>{stat.candidate_name || 'TBA'}</div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{stat.party_name}</div>
                       </td>
-                      <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{stat.constituency_name}</td>
-                      <td style={{ padding: '1rem' }}>
-                        <div style={{ height: '6px', width: '100px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                           <div style={{ height: '100%', width: `${percentage}%`, background: 'var(--primary-color)' }}></div>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{stat.constituency_name}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                               <div style={{ height: '100%', width: `${percentage}%`, background: i === 0 ? 'var(--success-color)' : 'var(--primary-color)' }}></div>
+                            </div>
+                            <span style={{ fontSize: '0.8rem', width: '40px', fontWeight: 'bold' }}>{percentage}%</span>
                         </div>
-                        <span style={{ fontSize: '0.7rem' }}>{percentage}%</span>
                       </td>
-                      <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold', fontSize: '1.2rem' }}>{stat.vote_count}</td>
+                      <td style={{ textAlign: 'right', fontWeight: '800', fontSize: '1.2rem', color: i === 0 ? 'var(--success-color)' : 'white' }}>{stat.vote_count.toLocaleString()}</td>
                     </tr>
                   );
                 })}
+                {(!filteredStandings || filteredStandings.length === 0) && (
+                    <tr><td colSpan="5" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>No data matches the current filters.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {role === 'admin' && (
+      {/* 🛡️ ADMIN BENTO DASHBOARD */}
+      {role === 'admin' && activeTab === 'health' && (
         <div className="animate-fade-in">
-           <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <span>🔍 Filters:</span>
-              <select className="input-field" style={{ width: 'auto' }} value={filters.state} onChange={e => setFilters({...filters, state: e.target.value})}>
-                <option value="">All States</option>
+           <div className="bento-grid" style={{ marginBottom: '1.5rem' }}>
+              <div className="glass-panel glow-primary animate-float" style={{ padding: '2rem' }}>
+                  <div className="metric-label">System-Wide Votes</div>
+                  <div className="metric-value primary">{healthData.reduce((acc, c) => acc + c.total_votes, 0).toLocaleString()}</div>
+              </div>
+              <div className="glass-panel glow-success animate-float" style={{ padding: '2rem', animationDelay: '0.2s' }}>
+                  <div className="metric-label">Online Machines</div>
+                  <div className="metric-value success">{onlineMachinesCount} <span style={{ fontSize: '1.5rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>/ {healthData.length}</span></div>
+              </div>
+              <div className="glass-panel glow-warning animate-float" style={{ padding: '2rem', animationDelay: '0.4s' }}>
+                  <div className="metric-label">Network Uptime</div>
+                  <div className="metric-value warning">{healthData.length > 0 ? ((onlineMachinesCount / healthData.length) * 100).toFixed(0) : 0}%</div>
+              </div>
+           </div>
+
+           <div className="glass-panel" style={{ padding: '1rem 1.5rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', background: 'rgba(0,0,0,0.4)' }}>
+              <div style={{ flex: 1, minWidth: '250px', position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
+                  <input type="text" className="input-field" placeholder="Search area name or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: '2.5rem', borderRadius: '100px' }} />
+              </div>
+              <select className="input-field" style={{ width: 'auto', borderRadius: '100px' }} value={filters.state} onChange={e => setFilters({...filters, state: e.target.value})}>
+                <option value="">📍 All States</option>
                 {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
-              <select className="input-field" style={{ width: 'auto' }} value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
-                <option value="all">All Status</option>
-                <option value="online">Online Only</option>
-                <option value="offline">Offline Only</option>
+              <select className="input-field" style={{ width: 'auto', borderRadius: '100px' }} value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
+                <option value="all">⚡ All Statuses</option>
+                <option value="online">● Online Only</option>
+                <option value="offline">○ Offline Only</option>
               </select>
           </div>
           
-          <div className="glass-panel" style={{ padding: 0 }}>
-            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+          <div className="glass-panel" style={{ padding: 0, overflowX: 'auto' }}>
+            <table className="bento-table">
               <thead>
-                <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
-                  <th style={{ padding: '1rem' }}>Constituency</th>
-                  <th style={{ padding: '1rem' }}>Machine Status</th>
-                  <th style={{ padding: '1rem' }}>Ballot</th>
+                <tr>
+                  <th>Area ID</th>
+                  <th>Constituency</th>
+                  <th>Machine Network</th>
+                  <th>Ballot State</th>
+                  <th style={{ textAlign: 'right' }}>Local Votes</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredHealth.map(c => (
-                  <tr key={c.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <td style={{ padding: '1rem' }}>{c.name} <code style={{ fontSize: '0.7rem', opacity: 0.5 }}>{c.id}</code></td>
-                    <td style={{ padding: '1rem' }}>
-                        <span style={{ color: c.is_active ? 'var(--success-color)' : 'var(--error-color)' }}>{c.is_active ? '● ONLINE' : '○ OFFLINE'}</span>
+                  <tr key={c.id}>
+                    <td><code style={{ background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '4px', color: 'var(--primary-color)' }}>{c.id}</code></td>
+                    <td style={{ fontWeight: '600' }}>{c.name}</td>
+                    <td>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: c.is_active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', padding: '4px 12px', borderRadius: '100px', border: `1px solid ${c.is_active ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}` }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: c.is_active ? 'var(--success-color)' : 'var(--error-color)', boxShadow: `0 0 10px ${c.is_active ? 'var(--success-color)' : 'var(--error-color)'}` }}></div>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: c.is_active ? 'var(--success-color)' : 'var(--error-color)', textTransform: 'uppercase' }}>{c.is_active ? 'Online' : 'Offline'}</span>
+                        </div>
                     </td>
-                    <td style={{ padding: '1rem' }}>{c.ballot_enabled ? '✅ ENABLED' : '🔒 LOCKED'}</td>
+                    <td>
+                        <span style={{ color: c.ballot_enabled ? 'var(--text-main)' : 'var(--text-secondary)' }}>
+                            {c.is_active ? (c.ballot_enabled ? '✅ Unlocked' : '🔒 Locked') : '—'}
+                        </span>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{c.total_votes}</td>
                   </tr>
                 ))}
+                {filteredHealth.length === 0 && (
+                    <tr><td colSpan="5" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>No machines match current filters.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
+      {/* 🛂 OFFICER DUAL-MODULE KIOSK */}
       {role === 'officer' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }} className="animate-fade-in">
-          {/* Left Column: Control Panel */}
-          <div className="glass-panel" style={{ padding: '2rem' }}>
-            <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>⚙️ Control Panel</h3>
-            
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-                <div style={{ flex: 1, padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
-                    <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>MACHINE</p>
-                    <p style={{ margin: 0, fontWeight: 'bold', color: currentStatus === 'ACTIVE' ? 'var(--success-color)' : 'var(--error-color)' }}>{currentStatus}</p>
-                </div>
-                <div style={{ flex: 1, padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
-                    <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>VOTES</p>
-                    <p style={{ margin: 0, fontWeight: 'bold' }}>{totalVotes}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '2rem' }} className="animate-fade-in">
+          
+          {/* MODULE A: MACHINE CONTROL */}
+          <div className={`glass-panel ${currentStatus === 'ACTIVE' ? 'glow-success' : 'glow-warning'}`} style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    ⚙️ Machine Control
+                </h3>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>NETWORK</div>
+                        <div style={{ fontWeight: 'bold', color: currentStatus === 'ACTIVE' ? 'var(--success-color)' : 'var(--error-color)' }}>{currentStatus || 'WAIT'}</div>
+                    </div>
+                    <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.1)' }}></div>
+                    <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>VOTES</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{totalVotes}</div>
+                    </div>
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1 }}>
                 {currentStatus !== 'ACTIVE' ? (
-                    <SwipeSlider label="Slide to Power On" color="var(--success-color)" onConfirm={() => handleOfficerAction('start')} disabled={officerLoading} />
+                    <div style={{ padding: '2rem', background: 'rgba(0,0,0,0.3)', borderRadius: '16px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '3rem', opacity: 0.5, marginBottom: '1rem' }}>🔌</div>
+                        <h4 style={{ marginBottom: '2rem', color: 'var(--text-secondary)' }}>Machine is currently powered down</h4>
+                        <SwipeSlider label="Slide to Power On" color="var(--success-color)" onConfirm={() => handleOfficerAction('start')} disabled={officerLoading} />
+                    </div>
                 ) : (
                     <>
-                        <SwipeSlider label={ballotEnabled ? "Ballot is Enabled" : "Slide to Enable Ballot"} color="var(--primary-color)" onConfirm={() => handleOfficerAction('enable')} disabled={officerLoading || ballotEnabled} />
-                        <SwipeSlider label="Slide to Power Off" color="var(--error-color)" onConfirm={() => handleOfficerAction('stop')} disabled={officerLoading} />
+                        <div style={{ padding: '2rem', background: ballotEnabled ? 'rgba(56, 189, 248, 0.1)' : 'rgba(0,0,0,0.3)', border: `1px solid ${ballotEnabled ? 'rgba(56, 189, 248, 0.3)' : 'transparent'}`, borderRadius: '16px', textAlign: 'center', transition: 'all 0.3s' }}>
+                            <div style={{ fontSize: '3rem', marginBottom: '1rem', filter: ballotEnabled ? 'drop-shadow(0 0 10px rgba(56, 189, 248, 0.5))' : 'none' }}>{ballotEnabled ? '🗳️' : '🔒'}</div>
+                            <h4 style={{ marginBottom: '2rem', color: ballotEnabled ? 'var(--primary-color)' : 'var(--text-secondary)' }}>
+                                {ballotEnabled ? 'Ballot Unlocked for Voter' : 'Booth is Locked. Waiting for next voter.'}
+                            </h4>
+                            <SwipeSlider label={ballotEnabled ? "Awaiting Vote..." : "Slide to Unlock Ballot"} color="var(--primary-color)" onConfirm={() => handleOfficerAction('enable')} disabled={officerLoading || ballotEnabled} />
+                        </div>
+                        
+                        <div style={{ marginTop: 'auto', paddingTop: '1.5rem' }}>
+                            <SwipeSlider label="Slide to Power Off" color="var(--error-color)" onConfirm={() => handleOfficerAction('stop')} disabled={officerLoading || ballotEnabled} />
+                        </div>
                     </>
                 )}
             </div>
 
             {currentStatus !== 'ACTIVE' && (
-                <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                    <button className="btn btn-secondary" style={{ width: '100%', borderColor: 'var(--error-color)', color: 'var(--error-color)' }} onClick={() => handleOfficerAction('wipe_prompt')}>🗑️ Archive & Reset Votes</button>
+                <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+                    <button className="btn btn-secondary" style={{ width: '100%', borderColor: 'rgba(239, 68, 68, 0.3)', color: 'var(--error-color)', background: 'rgba(239, 68, 68, 0.05)' }} onClick={() => handleOfficerAction('wipe_prompt')}>🗑️ Archive & Reset Local Votes</button>
                 </div>
             )}
 
             {wipeConfirmation && (
-                <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', borderRadius: '8px' }}>
-                    <p style={{ fontSize: '0.8rem', marginBottom: '1rem' }}>Enter 4-digit PIN to confirm wipe:</p>
-                    <input type="password" maxLength="4" className="input-field" value={wipePin} onChange={e => setWipePin(e.target.value)} style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '5px' }} />
-                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <div className="animate-fade-in" style={{ marginTop: '1rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', borderRadius: '12px' }}>
+                    <p style={{ fontSize: '0.85rem', marginBottom: '1rem', color: '#fca5a5' }}>Security override. Enter 4-digit Officer PIN to confirm irreversible wipe:</p>
+                    <input type="password" maxLength="4" className="input-field" value={wipePin} onChange={e => setWipePin(e.target.value)} style={{ textAlign: 'center', fontSize: '2rem', letterSpacing: '8px', background: 'rgba(0,0,0,0.5)' }} />
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                         <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => handleOfficerAction('cancel_wipe')}>Cancel</button>
-                        <button className="btn btn-primary" style={{ flex: 1, background: 'var(--error-color)' }} onClick={() => handleOfficerAction('wipe')} disabled={wipePin.length !== 4}>Confirm</button>
+                        <button className="btn btn-primary" style={{ flex: 1, background: 'var(--error-color)', boxShadow: '0 0 15px rgba(239, 68, 68, 0.4)' }} onClick={() => handleOfficerAction('wipe')} disabled={wipePin.length !== 4}>CONFIRM WIPE</button>
                     </div>
                 </div>
             )}
           </div>
 
-          {/* Right Column: Verify Voter */}
-          <div className="glass-panel" style={{ padding: '2rem' }}>
-            <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>👤 Voter Verification</h3>
+          {/* MODULE B: VOTER VERIFICATION */}
+          <div className="glass-panel glow-primary" style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    👤 Identity Verification Kiosk
+                </h3>
+            </div>
             
-            {!scannedVoter && !generatedAck ? (
-                <div style={{ textAlign: 'center' }}>
-                    <div className="scanner-container" style={{ margin: '0 auto 2rem auto' }}>
-                        {isScanning && <div className="scanner-line"></div>}
-                        <p style={{ opacity: 0.5 }}>{isScanning ? 'Processing...' : 'Ready to Scan'}</p>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                {!scannedVoter && !generatedAck ? (
+                    <div className="animate-fade-in" style={{ width: '100%', textAlign: 'center' }}>
+                        <div className="scanner-container" style={{ margin: '0 auto 2.5rem auto' }}>
+                            {isScanning && <div className="scanner-line"></div>}
+                            <p style={{ opacity: isScanning ? 1 : 0.5, color: isScanning ? 'var(--primary-color)' : 'inherit', fontWeight: isScanning ? 'bold' : 'normal', transition: 'all 0.3s' }}>
+                                {isScanning ? 'Processing Biometrics...' : 'Ready to Scan Virtual ID'}
+                            </p>
+                        </div>
+                        <button className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', fontSize: '1.1rem' }} onClick={handleScan} disabled={isScanning || currentStatus !== 'ACTIVE'}>
+                            {currentStatus !== 'ACTIVE' ? 'Power on machine to scan' : 'Simulate ID Scan'}
+                        </button>
                     </div>
-                    <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleScan} disabled={isScanning}>Simulate ID Scan</button>
-                </div>
-            ) : scannedVoter && !generatedAck ? (
-                <div className="animate-fade-in">
-                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--success-color)', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
-                        <p style={{ color: 'var(--success-color)', fontWeight: 'bold', margin: '0 0 0.5rem 0' }}>✓ ID Verified</p>
-                        <p style={{ margin: 0 }}>Name: {scannedVoter.name}</p>
-                        <p style={{ margin: 0, opacity: 0.6, fontSize: '0.8rem' }}>ID: {scannedVoter.id}</p>
+                ) : scannedVoter && !generatedAck ? (
+                    <div className="animate-fade-in" style={{ width: '100%' }}>
+                        <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2rem', borderRadius: '16px', marginBottom: '2rem', textAlign: 'center' }}>
+                            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto', fontSize: '2rem' }}>✓</div>
+                            <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--success-color)' }}>Identity Verified</h3>
+                            <p style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold' }}>{scannedVoter.name}</p>
+                            <p style={{ margin: '0.5rem 0 0 0', opacity: 0.5, fontFamily: 'monospace' }}>{scannedVoter.id}</p>
+                        </div>
+                        <button className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', fontSize: '1.1rem', background: 'linear-gradient(135deg, var(--accent-color), var(--primary-color))' }} onClick={handleGenerateAck} disabled={officerLoading}>
+                            Issue ACK Token
+                        </button>
                     </div>
-                    <button className="btn btn-primary" style={{ width: '100%', padding: '1rem' }} onClick={handleGenerateAck} disabled={officerLoading}>Generate ACK Number</button>
-                </div>
-            ) : (
-                <div className="animate-fade-in" style={{ textAlign: 'center' }}>
-                    <p style={{ opacity: 0.6 }}>Voter Acknowledgment Number:</p>
-                    <div style={{ fontSize: '3rem', fontWeight: 'bold', color: 'white', margin: '1rem 0' }}>{generatedAck}</div>
-                    <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => { setScannedVoter(null); setGeneratedAck(null); }}>Next Voter</button>
+                ) : (
+                    <div className="animate-fade-in" style={{ width: '100%', textAlign: 'center' }}>
+                        <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '3rem 2rem', borderRadius: '16px', marginBottom: '2rem' }}>
+                            <p style={{ margin: '0 0 1rem 0', color: 'var(--primary-color)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '2px' }}>Secure Voter Token</p>
+                            <div style={{ fontSize: '4.5rem', fontWeight: '800', letterSpacing: '8px', color: 'white', fontFamily: 'Outfit', textShadow: '0 0 20px rgba(56, 189, 248, 0.5)' }}>
+                                {generatedAck}
+                            </div>
+                            <p style={{ margin: '1rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Provide this number to the voter to unlock the booth.</p>
+                        </div>
+                        <button className="btn btn-secondary" style={{ width: '100%', padding: '1.2rem', fontSize: '1.1rem' }} onClick={() => { setScannedVoter(null); setGeneratedAck(null); }}>
+                            Scan Next Voter
+                        </button>
+                    </div>
+                )}
+            </div>
+            
+            {officerError && (
+                <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5', borderRadius: '8px', fontSize: '0.85rem', textAlign: 'center' }}>
+                    ⚠️ {officerError}
                 </div>
             )}
           </div>
