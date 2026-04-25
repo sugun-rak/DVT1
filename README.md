@@ -86,7 +86,7 @@ Here is a guide to where the most important code lives:
 - **Purpose**: Handles "Who can I vote for?" and "Record my vote."
 - **Key Functionality**:
   - **Master Data**: Manages states, constituencies, parties, and candidates (with images and Hindi names).
-  - **Voting Logic**: Securely records votes in the `votes` table. It ensures a voter ID or session ID cannot vote twice.
+  - **Voting Logic**: Securely records votes in the `votes` table using an **anonymous ballot box** strategy. It ensures a voter cannot vote twice by tracking participation separately from the ballot itself.
   - **Analytics**: Calculates real-time stats (Total Votes, Votes per Party).
   - **History management**: Allows Super Admins to "Reset" or "Restore" voting cycles (archiving current votes into `votes_history`).
 
@@ -129,8 +129,9 @@ The system uses two logical separations (often in the same DB instance but diffe
 ### Election Tables
 - `states` / `constituencies`: Geographic hierarchy.
 - `parties` / `candidates`: The "Who's Who" of the election.
-- `votes`: The actual ledger of cast votes (encrypted/anonymized via IDs).
-- `votes_history`: Archived votes from previous resets.
+- `voter_participation`: Records *who* has voted (prevents double-voting).
+- `votes`: The **Anonymized Ballot Box** (stores only Party/Candidate selection).
+- `votes_history` / `voter_participation_history`: Archived records from previous resets.
 
 ---
 
@@ -143,6 +144,12 @@ To allow non-technical users to test the app without manual setup:
 3. These are valid for **exactly 15 minutes**.
 4. The user receives a beautiful HTML email with their credentials.
 5. The frontend shows a live countdown timer; once it hits zero, the user is automatically logged out and notified via email.
+
+### 🛡️ Voter Secrecy & Anonymization
+To ensure the "Secrecy of the Ballot," the system uses a decoupled storage architecture:
+- **The Registry**: When a voter casts their ballot, their ID is recorded in a "Participation Registry." This tells the system they have already voted.
+- **The Ballot Box**: The actual vote is dropped into a separate "Anonymous Ballot Box" with **no connection** to the voter's identity or session.
+- **Data Cleansing**: The system includes a migration engine that automatically anonymizes any existing identifiable data, ensuring even old test records are secure.
 
 ### ❄️ Cold Start Handling
 Because this app is often hosted on "Free Tier" services (like Render), the servers "go to sleep" after inactivity.
