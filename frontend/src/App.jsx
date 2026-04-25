@@ -6,11 +6,11 @@ import VoterFlow from './components/VoterFlow';
 import ManagementFlow from './components/ManagementFlow';
 import { API_URL } from './config';
 
-// ── Local storage helpers (shared across tabs, survives refresh) ──
-const ls = {
-  get: (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
-  remove: (k) => { try { localStorage.removeItem(k); } catch {} },
+// ── Tab-isolated storage helpers (sessionStorage = per-tab, survives refresh, not shared across tabs) ──
+const ss = {
+  get: (k) => { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
+  set: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  remove: (k) => { try { sessionStorage.removeItem(k); } catch {} },
 };
 
 // Fire expiry notification via sendBeacon (survives page close) + fetch fallback
@@ -40,32 +40,24 @@ function App() {
   const [wakeTimeout, setWakeTimeout] = useState(false);
   const [factIndex, setFactIndex] = useState(0);
 
-  const [managementSession, setManagementSession] = useState(() => ls.get('dvt_session'));
-  const [publicVotingMode, setPublicVotingMode] = useState(() => ls.get('dvt_voting_mode') === true);
+  // ── Use sessionStorage so each tab is fully independent again ──
+  const [managementSession, setManagementSession] = useState(() => ss.get('dvt_session'));
+  const [publicVotingMode, setPublicVotingMode] = useState(() => ss.get('dvt_voting_mode') === true);
   
   const [authView, setAuthView] = useState({ view: 'select', role: '', user: '' });
   const [guestExpiring, setGuestExpiring] = useState(null);
   const [showExpiredBanner, setShowExpiredBanner] = useState(false);
-
-  // Cross-tab synchronization
+  
   useEffect(() => {
-    const handleSync = (e) => {
-      if (e.key === 'dvt_session') setManagementSession(e.newValue ? JSON.parse(e.newValue) : null);
-      if (e.key === 'dvt_voting_mode') setPublicVotingMode(e.newValue === 'true');
-    };
-    window.addEventListener('storage', handleSync);
-    return () => window.removeEventListener('storage', handleSync);
-  }, []);
-
-  useEffect(() => {
-    if (managementSession) ls.set('dvt_session', managementSession);
-    else ls.remove('dvt_session');
+    if (managementSession) ss.set('dvt_session', managementSession);
+    else ss.remove('dvt_session');
   }, [managementSession]);
 
   useEffect(() => {
-    ls.set('dvt_voting_mode', publicVotingMode);
+    ss.set('dvt_voting_mode', publicVotingMode);
   }, [publicVotingMode]);
 
+  // ── Guest Session Auto-Logout (derives timer from JWT exp, which is shared via backend) ──
   useEffect(() => {
     if (!managementSession?.token) { setGuestExpiring(null); return; }
 
@@ -75,11 +67,11 @@ function App() {
     if (!payload?.id?.startsWith('guest_')) { setGuestExpiring(null); return; }
 
     const expiryMs = payload.exp * 1000;
-    const guestInfo = ls.get('dvt_guest_info') || {};
+    const guestInfo = ss.get('dvt_guest_info') || {};
 
     if (Date.now() >= expiryMs) {
       fireExpiryNotification(guestInfo, expiryMs);
-      ls.remove('dvt_guest_info');
+      ss.remove('dvt_guest_info');
       setManagementSession(null);
       setAuthView({ view: 'role_select', role: '', user: '' });
       return;
@@ -96,7 +88,7 @@ function App() {
       fireExpiryNotification(guestInfo, expiryMs);
       setTimeout(() => {
         setShowExpiredBanner(false);
-        ls.remove('dvt_guest_info');
+        ss.remove('dvt_guest_info');
         setManagementSession(null);
         setAuthView({ view: 'role_select', role: '', user: '' });
       }, 4000);

@@ -407,6 +407,23 @@ app.post('/guest/expired-notify', async (req, res) => {
     try {
         const { email, name, timezone, expiredAt, timezoneOffsetMinutes } = req.body;
         if (!email || !name) return res.status(400).json({ error: 'Email and name required' });
+
+        // Find the shared session for this guest group to prevent duplicate emails
+        let sessionToNotify = null;
+        for (const pinData of guest_pins.values()) {
+            if (pinData.session && pinData.session.guestEmail === email) {
+                sessionToNotify = pinData.session;
+                break;
+            }
+        }
+
+        if (sessionToNotify) {
+            if (sessionToNotify.notificationSent) {
+                return res.json({ success: true, message: 'Notification already sent' });
+            }
+            sessionToNotify.notificationSent = true;
+        }
+
         const expiredDate = expiredAt ? parseInt(expiredAt) : Date.now();
         const guestTimezone = timezone || 'UTC';
         const offsetMins = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
