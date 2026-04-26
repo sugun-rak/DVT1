@@ -447,7 +447,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
 
       {/* 🛂 OFFICER DUAL-MODULE KIOSK */}
       {role === 'officer' && (
-        <div className="animate-fade-in" style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
+        <div className="animate-fade-in" style={{ width: '100%', maxWidth: '1400px', margin: '0 auto', padding: 'clamp(1rem, 2vh, 2rem) 1rem' }}>
           
           {/* TAB SELECTOR */}
           <div className="glass-panel" style={{ padding: '0.5rem', marginBottom: '2rem', display: 'flex', gap: '0.5rem', background: 'var(--panel-inner-bg)', borderRadius: '100px' }}>
