@@ -132,7 +132,7 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.3, zIndex: -1 }}></div>
         
         {/* Main Content Area - 3 Column Bento Grid */}
-        <div className="bento-grid" style={{ maxWidth: '1400px', width: '100%', zIndex: 1, margin: 'auto' }}>
+        <div className="bento-grid" style={{ maxWidth: '1800px', width: '100%', zIndex: 1, margin: 'auto' }}>
           
           {/* 1. HERO Bento Card */}
           <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', textAlign: 'left', padding: 'clamp(2rem, 4vw, 3rem)' }}>

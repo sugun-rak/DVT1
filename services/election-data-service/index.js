@@ -326,6 +326,7 @@ app.get('/stats', async (req, res) => {
                 c.name as candidate_name,
                 c.id as candidate_id,
                 co.name as constituency_name,
+                co.id as constituency_id,
                 COUNT(v.id) as vote_count
             FROM parties p
             JOIN candidates c ON p.id = c.party_id

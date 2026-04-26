@@ -78,17 +78,28 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
       }
 
       if (role === 'admin') {
-        const [cRes, hRes] = await Promise.all([
+        const [cRes, hRes, sRes] = await Promise.all([
           fetchWithBackoff(`${API_URL}/voting/constituencies`),
-          fetchWithBackoff(`${API_URL}/verification/officer/status-batch`, { headers: authHeaders })
+          fetchWithBackoff(`${API_URL}/verification/officer/status-batch`, { headers: authHeaders }),
+          fetchWithBackoff(`${API_URL}/voting/stats`)
         ]);
-        if (cRes.ok && hRes.ok) {
+        if (cRes.ok && hRes.ok && sRes.ok) {
           const cData = await cRes.json();
           const hMap = await hRes.json();
+          const sData = await sRes.json();
+          
+          // Compute total votes per constituency
+          const voteMap = {};
+          if (sData && sData.party_stats) {
+             sData.party_stats.forEach(stat => {
+                 voteMap[stat.constituency_id] = (voteMap[stat.constituency_id] || 0) + stat.vote_count;
+             });
+          }
+
           const merged = cData.map(c => ({
             ...c,
             ...(hMap[c.id] || { is_active: false, ballot_enabled: false }),
-            total_votes: 0 
+            total_votes: voteMap[c.id] || 0 
           }));
           setHealthData(merged);
         }
@@ -240,7 +251,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   const onlineMachinesCount = healthData.filter(h => h.is_active).length;
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1400px', width: '100%', margin: '0 auto', overflowX: 'hidden' }}>
+    <div style={{ padding: '2rem', maxWidth: '1800px', width: '100%', margin: '0 auto', overflowX: 'hidden' }}>
       
       {/* 🔮 GLOBAL HEADER */}
       <div className="glass-panel animate-fade-in" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', borderRadius: '24px' }}>
@@ -447,7 +458,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
 
       {/* 🛂 OFFICER DUAL-MODULE KIOSK */}
       {role === 'officer' && (
-        <div className="animate-fade-in" style={{ width: '100%', maxWidth: '1400px', margin: '0 auto', padding: 'clamp(1rem, 2vh, 2rem) 1rem' }}>
+        <div className="animate-fade-in" style={{ width: '100%', maxWidth: '1800px', margin: '0 auto', padding: 'clamp(1rem, 2vh, 2rem) 1rem' }}>
           
           {/* TAB SELECTOR */}
           <div className="glass-panel" style={{ padding: '0.5rem', marginBottom: '2rem', display: 'flex', gap: '0.5rem', background: 'var(--panel-inner-bg)', borderRadius: '100px' }}>

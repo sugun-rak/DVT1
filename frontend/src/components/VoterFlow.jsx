@@ -149,7 +149,7 @@ export default function VoterFlow({ onExit }) {
 
   if (view === 'page1') {
     return (
-      <div className="animate-fade-in" style={{ width: '100%', maxWidth: '1400px', margin: '0 auto', padding: 'clamp(1rem, 2vh, 2rem) 1rem' }}>
+      <div className="animate-fade-in" style={{ width: '100%', maxWidth: '1800px', margin: '0 auto', padding: 'clamp(1rem, 2vh, 2rem) 1rem' }}>
         {renderHeaderInfo()}
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <h1 className="font-heading" style={{ fontSize: '3rem', marginBottom: '0.5rem', background: 'linear-gradient(135deg, #fff, #38bdf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{t('select_party')}</h1>
