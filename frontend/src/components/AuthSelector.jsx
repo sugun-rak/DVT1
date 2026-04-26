@@ -127,7 +127,7 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
 
   if (view === 'select') {
     return (
-      <div className="animate-fade-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', position: 'relative', padding: '1rem' }}>
+      <div className="animate-fade-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100%', position: 'relative', padding: 'clamp(2rem, 5vh, 4rem) 1rem 4rem 1rem' }}>
         {/* Background Layer */}
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.3, zIndex: -1 }}></div>
         
@@ -152,8 +152,8 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
             <div style={{ flex: 1, position: 'relative' }}>
               {CAROUSEL_SLIDES.map((slide, idx) => (
                 <div key={idx} style={{ 
-                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
-                    padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                    position: idx === currentSlide ? 'relative' : 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
+                    padding: 'clamp(1rem, 3vw, 2rem)', display: 'flex', flexDirection: 'column', justifyContent: 'center',
                     opacity: idx === currentSlide ? 1 : 0, 
                     visibility: idx === currentSlide ? 'visible' : 'hidden',
                     transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)',

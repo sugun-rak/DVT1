@@ -243,7 +243,7 @@ function App() {
         </button>
       </header>
 
-      <main style={{ flex: 1, display: 'block', overflowY: 'auto', overflowX: 'hidden' }}>
+      <main style={{ flex: 1, minHeight: 0, display: 'block', overflowY: 'auto', overflowX: 'hidden' }}>
         {!managementSession && !publicVotingMode ? (
           <AuthSelector onManagementLogin={handleManagementLogin} onEnterPublicVoting={() => setPublicVotingMode(true)} initialView={authView.view} initialRole={authView.role} initialUser={authView.user} />
         ) : publicVotingMode ? (
