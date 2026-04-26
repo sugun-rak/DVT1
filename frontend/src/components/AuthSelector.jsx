@@ -127,33 +127,33 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
 
   if (view === 'select') {
     return (
-      <div className="animate-fade-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100%', position: 'relative', padding: 'clamp(2rem, 5vh, 4rem) 1rem 4rem 1rem' }}>
+      <div className="animate-fade-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100%', position: 'relative', padding: 'clamp(1rem, 2vh, 2rem)' }}>
         {/* Background Layer */}
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.3, zIndex: -1 }}></div>
         
-        {/* Main Content Area */}
-        <div style={{ textAlign: 'center', marginBottom: '3rem', zIndex: 1 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100px', height: '100px', borderRadius: '24px', background: 'var(--border-color)', backdropFilter: 'blur(10px)', border: '1px solid var(--border-color)', marginBottom: '1.5rem', boxShadow: '0 0 30px rgba(56, 189, 248, 0.2)' }}>
-              <img src={logo} alt="DVT Logo" style={{ height: '60px', filter: 'drop-shadow(0 0 10px rgba(56, 189, 248, 0.8))' }} />
-          </div>
-          <h1 className="font-heading" style={{ fontSize: 'clamp(3rem, 8vw, 4.5rem)', fontWeight: '800', background: 'linear-gradient(135deg, var(--text-main) 0%, var(--primary-color) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-            {t('app_title', 'Digital Voting System')}
-          </h1>
-          <p style={{ fontSize: 'clamp(1.1rem, 4vw, 1.3rem)', color: 'var(--text-secondary)', marginTop: '1rem', maxWidth: '650px', margin: '1.5rem auto 0', lineHeight: 1.6 }}>
-            The next generation of secure, verifiable, and transparent democratic technology. Experience the future of civic participation.
-          </p>
-        </div>
-
-        {/* Bento Grid layout for Hero section */}
-        <div className="bento-grid" style={{ maxWidth: '1000px', zIndex: 1 }}>
+        {/* Main Content Area - 3 Column Bento Grid */}
+        <div className="bento-grid" style={{ maxWidth: '1400px', width: '100%', zIndex: 1, margin: 'auto' }}>
           
-          {/* Carousel Bento Card */}
+          {/* 1. HERO Bento Card */}
+          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', textAlign: 'left', padding: 'clamp(2rem, 4vw, 3rem)' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '24px', background: 'var(--border-color)', backdropFilter: 'blur(10px)', border: '1px solid var(--border-color)', marginBottom: '2rem', boxShadow: '0 0 30px rgba(56, 189, 248, 0.2)' }}>
+                <img src={logo} alt="DVT Logo" style={{ height: '45px', filter: 'drop-shadow(0 0 10px rgba(56, 189, 248, 0.8))' }} />
+            </div>
+            <h1 className="font-heading" style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)', fontWeight: '800', background: 'linear-gradient(135deg, var(--text-main) 0%, var(--primary-color) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+              {t('app_title', 'Digital Voting System')}
+            </h1>
+            <p style={{ fontSize: 'clamp(1rem, 2vw, 1.2rem)', color: 'var(--text-secondary)', marginTop: '1.5rem', lineHeight: 1.6 }}>
+              The next generation of secure, verifiable, and transparent democratic technology. Experience the future of civic participation.
+            </p>
+          </div>
+
+          {/* 2. CAROUSEL Bento Card */}
           <div className="glass-panel glow-primary" style={{ position: 'relative', overflow: 'hidden', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ flex: 1, position: 'relative' }}>
               {CAROUSEL_SLIDES.map((slide, idx) => (
                 <div key={idx} style={{ 
                     position: idx === currentSlide ? 'relative' : 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
-                    padding: 'clamp(1rem, 3vw, 2rem)', display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                    padding: 'clamp(1.5rem, 3vw, 2rem)', display: 'flex', flexDirection: 'column', justifyContent: 'center',
                     opacity: idx === currentSlide ? 1 : 0, 
                     visibility: idx === currentSlide ? 'visible' : 'hidden',
                     transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -167,15 +167,15 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
               ))}
             </div>
             {/* Indicators */}
-            <div style={{ padding: '1.5rem 3rem', display: 'flex', gap: '8px', borderTop: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.2)' }}>
+            <div style={{ padding: '1.5rem 2rem', display: 'flex', gap: '8px', borderTop: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.2)' }}>
               {CAROUSEL_SLIDES.map((_, idx) => (
                 <div key={idx} style={{ height: '4px', width: idx === currentSlide ? '32px' : '16px', background: idx === currentSlide ? 'var(--primary-color)' : 'rgba(255,255,255,0.2)', borderRadius: '2px', transition: 'all 0.4s ease' }} />
               ))}
             </div>
           </div>
 
-          {/* Actions Bento Card */}
-          <div className="glass-panel glow-success" style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'var(--panel-bg-hover)' }}>
+          {/* 3. ACTIONS Bento Card */}
+          <div className="glass-panel glow-success" style={{ padding: 'clamp(1.5rem, 4vw, 2.5rem)', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'var(--panel-bg-hover)' }}>
             <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
                 <span className="metric-label" style={{ color: 'var(--primary-color)' }}>{t('select_portal', 'Access Portal')}</span>
             </div>
