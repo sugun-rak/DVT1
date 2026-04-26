@@ -25,6 +25,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   // Officer Session State
   const [currentStatus, setCurrentStatus] = useState(null);
   const [ballotEnabled, setBallotEnabled] = useState(false);
+  const [officerTab, setOfficerTab] = useState('machine');
   const [totalVotes, setTotalVotes] = useState(0);
   const [sessionHistory, setSessionHistory] = useState([]);
   const [wipeConfirmation, setWipeConfirmation] = useState(false);
@@ -446,122 +447,165 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
 
       {/* 🛂 OFFICER DUAL-MODULE KIOSK */}
       {role === 'officer' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '2rem' }} className="animate-fade-in">
+        <div className="animate-fade-in" style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
           
-          <div className={`glass-panel ${currentStatus === 'ACTIVE' ? 'glow-success' : 'glow-warning'}`} style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
-                <h3 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    ⚙️ Machine Control
-                </h3>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>NETWORK</div>
-                        <div style={{ fontWeight: 'bold', color: currentStatus === 'ACTIVE' ? 'var(--success-color)' : 'var(--error-color)' }}>{currentStatus || 'WAIT'}</div>
-                    </div>
-                    <div style={{ width: '1px', height: '30px', background: 'var(--border-color)' }}></div>
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>VOTES</div>
-                        <div style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{totalVotes}</div>
-                    </div>
-                </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1 }}>
-                {currentStatus !== 'ACTIVE' ? (
-                    <div style={{ padding: '2rem', background: 'var(--panel-inner-bg)', borderRadius: '16px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '3rem', opacity: 0.5, marginBottom: '1rem' }}>🔌</div>
-                        <h4 style={{ marginBottom: '2rem', color: 'var(--text-secondary)' }}>Machine is currently powered down</h4>
-                        <SwipeSlider label="Slide to Power On" color="var(--success-color)" onConfirm={() => handleOfficerAction('start')} disabled={officerLoading} />
-                    </div>
-                ) : (
-                    <>
-                        <div style={{ padding: '2rem', background: ballotEnabled ? 'rgba(56, 189, 248, 0.1)' : 'rgba(0,0,0,0.3)', border: `1px solid ${ballotEnabled ? 'rgba(56, 189, 248, 0.3)' : 'transparent'}`, borderRadius: '16px', textAlign: 'center', transition: 'all 0.3s' }}>
-                            <div style={{ fontSize: '3rem', marginBottom: '1rem', filter: ballotEnabled ? 'drop-shadow(0 0 10px rgba(56, 189, 248, 0.5))' : 'none' }}>{ballotEnabled ? '🗳️' : '🔒'}</div>
-                            <h4 style={{ marginBottom: '2rem', color: ballotEnabled ? 'var(--primary-color)' : 'var(--text-secondary)' }}>
-                                {ballotEnabled ? 'Ballot Unlocked for Voter' : 'Booth is Locked. Waiting for next voter.'}
-                            </h4>
-                            <SwipeSlider label={ballotEnabled ? "Awaiting Vote..." : "Slide to Unlock Ballot"} color="var(--primary-color)" onConfirm={() => handleOfficerAction('enable')} disabled={officerLoading || ballotEnabled} />
-                        </div>
-                        
-                        <div style={{ marginTop: 'auto', paddingTop: '1.5rem' }}>
-                            <SwipeSlider label="Slide to Power Off" color="var(--error-color)" onConfirm={() => handleOfficerAction('stop')} disabled={officerLoading || ballotEnabled} />
-                        </div>
-                    </>
-                )}
-            </div>
-
-            {currentStatus !== 'ACTIVE' && (
-                <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px dashed var(--border-color)' }}>
-                    <button className="btn btn-secondary" style={{ width: '100%', borderColor: 'rgba(239, 68, 68, 0.3)', color: 'var(--error-color)', background: 'rgba(239, 68, 68, 0.05)' }} onClick={() => handleOfficerAction('wipe_prompt')}>🗑️ Archive & Reset Local Votes</button>
-                </div>
-            )}
-
-            {wipeConfirmation && (
-                <div className="animate-fade-in" style={{ marginTop: '1rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', borderRadius: '12px' }}>
-                    <p style={{ fontSize: '0.85rem', marginBottom: '1rem', color: '#fca5a5' }}>Security override. Enter 4-digit Officer PIN to confirm irreversible wipe:</p>
-                    <input type="password" maxLength="4" className="input-field" value={wipePin} onChange={e => setWipePin(e.target.value)} style={{ textAlign: 'center', fontSize: '2rem', letterSpacing: '8px', background: 'var(--panel-inner-bg)' }} />
-                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                        <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => handleOfficerAction('cancel_wipe')}>Cancel</button>
-                        <button className="btn btn-primary" style={{ flex: 1, background: 'var(--error-color)', boxShadow: '0 0 15px rgba(239, 68, 68, 0.4)' }} onClick={() => handleOfficerAction('wipe')} disabled={wipePin.length !== 4}>CONFIRM WIPE</button>
-                    </div>
-                </div>
-            )}
+          {/* TAB SELECTOR */}
+          <div className="glass-panel" style={{ padding: '0.5rem', marginBottom: '2rem', display: 'flex', gap: '0.5rem', background: 'var(--panel-inner-bg)', borderRadius: '100px' }}>
+            <button 
+                className="btn" 
+                onClick={() => setOfficerTab('machine')}
+                style={{ 
+                    flex: 1, 
+                    padding: '1rem', 
+                    borderRadius: '100px', 
+                    background: officerTab === 'machine' ? 'var(--primary-color)' : 'transparent',
+                    color: officerTab === 'machine' ? '#fff' : 'var(--text-secondary)',
+                    fontWeight: 'bold',
+                    boxShadow: officerTab === 'machine' ? '0 4px 15px rgba(56, 189, 248, 0.4)' : 'none',
+                    border: 'none',
+                    transition: 'all 0.3s'
+                }}>
+                ⚙️ Machine Control
+            </button>
+            <button 
+                className="btn" 
+                onClick={() => setOfficerTab('verification')}
+                style={{ 
+                    flex: 1, 
+                    padding: '1rem', 
+                    borderRadius: '100px', 
+                    background: officerTab === 'verification' ? 'var(--primary-color)' : 'transparent',
+                    color: officerTab === 'verification' ? '#fff' : 'var(--text-secondary)',
+                    fontWeight: 'bold',
+                    boxShadow: officerTab === 'verification' ? '0 4px 15px rgba(56, 189, 248, 0.4)' : 'none',
+                    border: 'none',
+                    transition: 'all 0.3s'
+                }}>
+                👤 Voter Verification
+            </button>
           </div>
 
-          {/* MODULE B: VOTER VERIFICATION */}
-          <div className="glass-panel glow-primary" style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
-                <h3 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    👤 Identity Verification Kiosk
-                </h3>
-            </div>
-            
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                {!scannedVoter && !generatedAck ? (
-                    <div className="animate-fade-in" style={{ width: '100%', textAlign: 'center' }}>
-                        <div className="scanner-container" style={{ margin: '0 auto 2.5rem auto' }}>
-                            {isScanning && <div className="scanner-line"></div>}
-                            <p style={{ opacity: isScanning ? 1 : 0.5, color: isScanning ? 'var(--primary-color)' : 'inherit', fontWeight: isScanning ? 'bold' : 'normal', transition: 'all 0.3s' }}>
-                                {isScanning ? 'Processing Biometrics...' : 'Ready to Scan Virtual ID'}
-                            </p>
-                        </div>
-                        <button className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', fontSize: '1.1rem' }} onClick={handleScan} disabled={isScanning || currentStatus !== 'ACTIVE'}>
-                            {currentStatus !== 'ACTIVE' ? 'Power on machine to scan' : 'Simulate ID Scan'}
-                        </button>
-                    </div>
-                ) : scannedVoter && !generatedAck ? (
-                    <div className="animate-fade-in" style={{ width: '100%' }}>
-                        <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2rem', borderRadius: '16px', marginBottom: '2rem', textAlign: 'center' }}>
-                            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto', fontSize: '2rem' }}>✓</div>
-                            <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--success-color)' }}>Identity Verified</h3>
-                            <p style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold' }}>{scannedVoter.name}</p>
-                            <p style={{ margin: '0.5rem 0 0 0', opacity: 0.5, fontFamily: 'monospace' }}>{scannedVoter.id}</p>
-                        </div>
-                        <button className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', fontSize: '1.1rem', background: 'linear-gradient(135deg, var(--accent-color), var(--primary-color))' }} onClick={handleGenerateAck} disabled={officerLoading}>
-                            Issue ACK Token
-                        </button>
-                    </div>
-                ) : (
-                    <div className="animate-fade-in" style={{ width: '100%', textAlign: 'center' }}>
-                        <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '3rem 2rem', borderRadius: '16px', marginBottom: '2rem' }}>
-                            <p style={{ margin: '0 0 1rem 0', color: 'var(--primary-color)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '2px' }}>Secure Voter Token</p>
-                            <div style={{ fontSize: '4.5rem', fontWeight: '800', letterSpacing: '8px', color: 'var(--text-main)', fontFamily: 'Outfit', textShadow: '0 0 20px rgba(56, 189, 248, 0.5)' }}>
-                                {generatedAck}
-                            </div>
-                            <p style={{ margin: '1rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Provide this number to the voter to unlock the booth.</p>
-                        </div>
-                        <button className="btn btn-secondary" style={{ width: '100%', padding: '1.2rem', fontSize: '1.1rem' }} onClick={() => { setScannedVoter(null); setGeneratedAck(null); }}>
-                            Scan Next Voter
-                        </button>
-                    </div>
-                )}
-            </div>
-            
-            {officerError && (
-                <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5', borderRadius: '8px', fontSize: '0.85rem', textAlign: 'center' }}>
-                    ⚠️ {officerError}
+          <div style={{ position: 'relative' }}>
+              {/* MODULE A: MACHINE CONTROL */}
+              {officerTab === 'machine' && (
+                <div className={`glass-panel animate-fade-in ${currentStatus === 'ACTIVE' ? 'glow-success' : 'glow-warning'}`} style={{ padding: 'clamp(1.5rem, 4vw, 3rem)', display: 'flex', flexDirection: 'column', minHeight: '60vh' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
+                      <h3 style={{ margin: 0, fontSize: 'clamp(1.2rem, 3vw, 1.5rem)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          ⚙️ System Status
+                      </h3>
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                          <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>NETWORK</div>
+                              <div style={{ fontWeight: 'bold', color: currentStatus === 'ACTIVE' ? 'var(--success-color)' : 'var(--error-color)' }}>{currentStatus || 'WAIT'}</div>
+                          </div>
+                          <div style={{ width: '1px', height: '30px', background: 'var(--border-color)' }}></div>
+                          <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>VOTES</div>
+                              <div style={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{totalVotes}</div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1, justifyContent: 'center' }}>
+                      {currentStatus !== 'ACTIVE' ? (
+                          <div style={{ padding: 'clamp(1.5rem, 4vw, 3rem)', background: 'var(--panel-inner-bg)', borderRadius: '24px', textAlign: 'center' }}>
+                              <div style={{ fontSize: '4rem', opacity: 0.5, marginBottom: '1rem' }}>🔌</div>
+                              <h4 style={{ marginBottom: '2rem', color: 'var(--text-secondary)', fontSize: '1.2rem' }}>Machine is currently powered down</h4>
+                              <SwipeSlider label="Slide to Power On" color="var(--success-color)" onConfirm={() => handleOfficerAction('start')} disabled={officerLoading} />
+                          </div>
+                      ) : (
+                          <>
+                              <div style={{ padding: 'clamp(1.5rem, 4vw, 3rem)', background: ballotEnabled ? 'rgba(56, 189, 248, 0.1)' : 'rgba(0,0,0,0.3)', border: `1px solid ${ballotEnabled ? 'rgba(56, 189, 248, 0.3)' : 'transparent'}`, borderRadius: '24px', textAlign: 'center', transition: 'all 0.3s' }}>
+                                  <div style={{ fontSize: '4rem', marginBottom: '1rem', filter: ballotEnabled ? 'drop-shadow(0 0 15px rgba(56, 189, 248, 0.5))' : 'none' }}>{ballotEnabled ? '🗳️' : '🔒'}</div>
+                                  <h4 style={{ marginBottom: '2rem', fontSize: '1.2rem', color: ballotEnabled ? 'var(--primary-color)' : 'var(--text-secondary)' }}>
+                                      {ballotEnabled ? 'Ballot Unlocked for Voter' : 'Booth is Locked. Waiting for next voter.'}
+                                  </h4>
+                                  <SwipeSlider label={ballotEnabled ? "Awaiting Vote..." : "Slide to Unlock Ballot"} color="var(--primary-color)" onConfirm={() => handleOfficerAction('enable')} disabled={officerLoading || ballotEnabled} />
+                              </div>
+                              
+                              <div style={{ marginTop: 'auto', paddingTop: '1.5rem' }}>
+                                  <SwipeSlider label="Slide to Power Off" color="var(--error-color)" onConfirm={() => handleOfficerAction('stop')} disabled={officerLoading || ballotEnabled} />
+                              </div>
+                          </>
+                      )}
+                  </div>
+
+                  {currentStatus !== 'ACTIVE' && (
+                      <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px dashed var(--border-color)' }}>
+                          <button className="btn btn-secondary" style={{ width: '100%', borderColor: 'rgba(239, 68, 68, 0.3)', color: 'var(--error-color)', background: 'rgba(239, 68, 68, 0.05)' }} onClick={() => handleOfficerAction('wipe_prompt')}>🗑️ Archive & Reset Local Votes</button>
+                      </div>
+                  )}
+
+                  {wipeConfirmation && (
+                      <div className="animate-fade-in" style={{ marginTop: '1rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', borderRadius: '12px' }}>
+                          <p style={{ fontSize: '0.85rem', marginBottom: '1rem', color: '#fca5a5' }}>Security override. Enter 4-digit Officer PIN to confirm irreversible wipe:</p>
+                          <input type="password" maxLength="4" className="input-field" value={wipePin} onChange={e => setWipePin(e.target.value)} style={{ textAlign: 'center', fontSize: '2rem', letterSpacing: '8px', background: 'var(--panel-inner-bg)' }} />
+                          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => handleOfficerAction('cancel_wipe')}>Cancel</button>
+                              <button className="btn btn-primary" style={{ flex: 1, background: 'var(--error-color)', boxShadow: '0 0 15px rgba(239, 68, 68, 0.4)' }} onClick={() => handleOfficerAction('wipe')} disabled={wipePin.length !== 4}>CONFIRM WIPE</button>
+                          </div>
+                      </div>
+                  )}
                 </div>
-            )}
+              )}
+
+              {/* MODULE B: VOTER VERIFICATION */}
+              {officerTab === 'verification' && (
+                <div className="glass-panel animate-fade-in glow-primary" style={{ padding: 'clamp(1.5rem, 4vw, 3rem)', display: 'flex', flexDirection: 'column', minHeight: '60vh' }}>
+                  <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
+                      <h3 style={{ margin: 0, fontSize: 'clamp(1.2rem, 3vw, 1.5rem)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          👤 Identity Verification Kiosk
+                      </h3>
+                  </div>
+                  
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                      {!scannedVoter && !generatedAck ? (
+                          <div className="animate-fade-in" style={{ width: '100%', maxWidth: '400px', textAlign: 'center' }}>
+                              <div className="scanner-container" style={{ margin: '0 auto 2.5rem auto' }}>
+                                  {isScanning && <div className="scanner-line"></div>}
+                                  <p style={{ opacity: isScanning ? 1 : 0.5, color: isScanning ? 'var(--primary-color)' : 'inherit', fontWeight: isScanning ? 'bold' : 'normal', transition: 'all 0.3s' }}>
+                                      {isScanning ? 'Processing Biometrics...' : 'Ready to Scan Virtual ID'}
+                                  </p>
+                              </div>
+                              <button className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', fontSize: '1.1rem' }} onClick={handleScan} disabled={isScanning || currentStatus !== 'ACTIVE'}>
+                                  {currentStatus !== 'ACTIVE' ? 'Power on machine to scan' : 'Simulate ID Scan'}
+                              </button>
+                          </div>
+                      ) : scannedVoter && !generatedAck ? (
+                          <div className="animate-fade-in" style={{ width: '100%', maxWidth: '400px' }}>
+                              <div style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '2rem', borderRadius: '16px', marginBottom: '2rem', textAlign: 'center' }}>
+                                  <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem auto', fontSize: '2.5rem' }}>✓</div>
+                                  <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--success-color)' }}>Identity Verified</h3>
+                                  <p style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold' }}>{scannedVoter.name}</p>
+                                  <p style={{ margin: '0.5rem 0 0 0', opacity: 0.5, fontFamily: 'monospace' }}>{scannedVoter.id}</p>
+                              </div>
+                              <button className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', fontSize: '1.1rem', background: 'linear-gradient(135deg, var(--accent-color), var(--primary-color))' }} onClick={handleGenerateAck} disabled={officerLoading}>
+                                  Issue ACK Token
+                              </button>
+                          </div>
+                      ) : (
+                          <div className="animate-fade-in" style={{ width: '100%', maxWidth: '400px', textAlign: 'center' }}>
+                              <div style={{ background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '3rem 2rem', borderRadius: '24px', marginBottom: '2rem' }}>
+                                  <p style={{ margin: '0 0 1rem 0', color: 'var(--primary-color)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '2px' }}>Secure Voter Token</p>
+                                  <div style={{ fontSize: 'clamp(3rem, 10vw, 5rem)', fontWeight: '800', letterSpacing: '8px', color: 'var(--text-main)', fontFamily: 'Outfit', textShadow: '0 0 20px rgba(56, 189, 248, 0.5)' }}>
+                                      {generatedAck}
+                                  </div>
+                                  <p style={{ margin: '1rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Provide this number to the voter to unlock the booth.</p>
+                              </div>
+                              <button className="btn btn-secondary" style={{ width: '100%', padding: '1.2rem', fontSize: '1.1rem' }} onClick={() => { setScannedVoter(null); setGeneratedAck(null); }}>
+                                  Scan Next Voter
+                              </button>
+                          </div>
+                      )}
+                  </div>
+                  
+                  {officerError && (
+                      <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5', borderRadius: '8px', fontSize: '0.85rem', textAlign: 'center' }}>
+                          ⚠️ {officerError}
+                      </div>
+                  )}
+                </div>
+              )}
           </div>
         </div>
       )}
