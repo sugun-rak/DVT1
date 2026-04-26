@@ -239,7 +239,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   const onlineMachinesCount = healthData.filter(h => h.is_active).length;
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1400px', width: '100%', margin: '0 auto', overflow: 'hidden' }}>
+    <div style={{ padding: '2rem', maxWidth: '1400px', width: '100%', margin: '0 auto', overflowX: 'hidden' }}>
       
       {/* 🔮 GLOBAL HEADER */}
       <div className="glass-panel animate-fade-in" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', borderRadius: '24px' }}>

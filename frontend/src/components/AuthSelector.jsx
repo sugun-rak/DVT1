@@ -154,8 +154,11 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
                 <div key={idx} style={{ 
                     position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
                     padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                    opacity: idx === currentSlide ? 1 : 0, transition: 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-                    pointerEvents: idx === currentSlide ? 'auto' : 'none'
+                    opacity: idx === currentSlide ? 1 : 0, 
+                    visibility: idx === currentSlide ? 'visible' : 'hidden',
+                    transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+                    pointerEvents: idx === currentSlide ? 'auto' : 'none',
+                    zIndex: idx === currentSlide ? 2 : 1
                 }}>
                   <div style={{ width: '40px', height: '4px', background: 'var(--primary-color)', marginBottom: '1.5rem', borderRadius: '2px', boxShadow: '0 0 10px var(--primary-color)' }}></div>
                   <h2 className="font-heading" style={{ fontSize: 'clamp(1.8rem, 5vw, 2.2rem)', color: 'var(--text-main)', marginBottom: '1rem', fontWeight: '800' }}>{slide.title}</h2>
