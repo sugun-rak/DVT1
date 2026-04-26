@@ -127,7 +127,7 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
 
   if (view === 'select') {
     return (
-      <div className="animate-fade-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', position: 'relative', padding: '2rem 1rem' }}>
+      <div className="animate-fade-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', position: 'relative', padding: '1rem' }}>
         {/* Background Layer */}
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.3, zIndex: -1 }}></div>
         
@@ -148,12 +148,12 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
         <div className="bento-grid" style={{ maxWidth: '1000px', zIndex: 1 }}>
           
           {/* Carousel Bento Card */}
-          <div className="glass-panel glow-primary" style={{ position: 'relative', overflow: 'hidden', minHeight: '300px', display: 'flex', flexDirection: 'column' }}>
+          <div className="glass-panel glow-primary" style={{ position: 'relative', overflow: 'hidden', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ flex: 1, position: 'relative' }}>
               {CAROUSEL_SLIDES.map((slide, idx) => (
                 <div key={idx} style={{ 
                     position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
-                    padding: '3rem', display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                    padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center',
                     opacity: idx === currentSlide ? 1 : 0, transition: 'opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
                     pointerEvents: idx === currentSlide ? 'auto' : 'none'
                 }}>
@@ -172,7 +172,7 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
           </div>
 
           {/* Actions Bento Card */}
-          <div className="glass-panel glow-success" style={{ padding: '3rem 2.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'var(--panel-bg-hover)' }}>
+          <div className="glass-panel glow-success" style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'var(--panel-bg-hover)' }}>
             <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
                 <span className="metric-label" style={{ color: 'var(--primary-color)' }}>{t('select_portal', 'Access Portal')}</span>
             </div>
@@ -198,7 +198,7 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
 
   if (view === 'role_select') {
       return (
-          <div className="glass-panel animate-fade-in glow-primary" style={{ padding: '2.5rem', maxWidth: '450px', margin: '0 auto', textAlign: 'center', marginTop: '10vh' }}>
+          <div className="glass-panel animate-fade-in glow-primary" style={{ padding: '2rem 1.5rem', maxWidth: '450px', margin: '0 auto', textAlign: 'center', marginTop: '10vh' }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem' }}>
                   <button className="btn btn-secondary" onClick={() => setView('select')} style={{ padding: '0.5rem 1rem', borderRadius: '100px' }}>⬅️ Back</button>
                   <h2 className="font-heading" style={{ flex: 1, margin: 0, textAlign: 'center' }}>{t('select_management_role', 'Select Role')}</h2>
@@ -246,7 +246,7 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
 
   if (view === 'login') {
     return (
-      <div className="glass-panel animate-fade-in glow-primary" style={{ padding: '2.5rem', maxWidth: '400px', margin: '0 auto', textAlign: 'center', marginTop: '10vh' }}>
+      <div className="glass-panel animate-fade-in glow-primary" style={{ padding: '2rem 1.5rem', maxWidth: '400px', margin: '0 auto', textAlign: 'center', marginTop: '10vh' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '2rem' }}>
             <button className="btn btn-secondary" onClick={() => setView('role_select')} style={{ padding: '0.5rem 1rem', borderRadius: '100px' }}>⬅️ Back</button>
             <h2 className="font-heading" style={{ flex: 1, margin: 0 }}>{selectedRole === 'officer' ? t('officer_setup', 'Kiosk Setup') : t('admin_login', 'Admin Access')}</h2>

@@ -242,7 +242,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
     <div style={{ padding: '2rem', maxWidth: '1400px', width: '100%', margin: '0 auto', overflow: 'hidden' }}>
       
       {/* 🔮 GLOBAL HEADER */}
-      <div className="glass-panel animate-fade-in" style={{ padding: '1.5rem 2.5rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '100px' }}>
+      <div className="glass-panel animate-fade-in" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', borderRadius: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--primary-color), var(--accent-color))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', boxShadow: '0 0 20px rgba(56, 189, 248, 0.4)' }}>
                 {role === 'superadmin' ? '👑' : role === 'admin' ? '🛡️' : '🛂'}
@@ -446,11 +446,10 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
 
       {/* 🛂 OFFICER DUAL-MODULE KIOSK */}
       {role === 'officer' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '2rem' }} className="animate-fade-in">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))', gap: '2rem' }} className="animate-fade-in">
           
-          {/* MODULE A: MACHINE CONTROL */}
-          <div className={`glass-panel ${currentStatus === 'ACTIVE' ? 'glow-success' : 'glow-warning'}`} style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
+          <div className={`glass-panel ${currentStatus === 'ACTIVE' ? 'glow-success' : 'glow-warning'}`} style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
                 <h3 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     ⚙️ Machine Control
                 </h3>
@@ -510,7 +509,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
           </div>
 
           {/* MODULE B: VOTER VERIFICATION */}
-          <div className="glass-panel glow-primary" style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column' }}>
+          <div className="glass-panel glow-primary" style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
             <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem', marginBottom: '2rem' }}>
                 <h3 style={{ margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     👤 Identity Verification Kiosk

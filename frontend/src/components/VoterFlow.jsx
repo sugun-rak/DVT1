@@ -94,22 +94,19 @@ export default function VoterFlow({ onExit }) {
   };
 
   const renderHeaderInfo = () => (
-    <div className="glass-panel" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem', padding: '1.5rem', borderRadius: '16px', background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+    <div className="glass-panel" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem', marginBottom: '2rem', padding: '1.5rem', borderRadius: '16px', background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
       <div>
         <p className="metric-label" style={{ color: 'var(--primary-color)' }}>{t('session_id')}</p>
         <p style={{ fontWeight: 'bold', fontFamily: 'monospace', fontSize: '1.1rem' }}>{session.sessionId.substring(0,8)}</p>
       </div>
-      <div style={{ width: '1px', background: 'var(--border-color)' }}></div>
       <div>
         <p className="metric-label" style={{ color: 'var(--primary-color)' }}>Voter ID</p>
         <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{session.userId}</p>
       </div>
-      <div style={{ width: '1px', background: 'var(--border-color)' }}></div>
       <div>
         <p className="metric-label" style={{ color: 'var(--primary-color)' }}>{t('name')}</p>
         <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{session.voterDetails.name}</p>
       </div>
-      <div style={{ width: '1px', background: 'var(--border-color)' }}></div>
       <div>
         <p className="metric-label" style={{ color: 'var(--primary-color)' }}>{t('constituency')}</p>
         <p style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--text-main)' }}>{session.voterDetails.constituency_id.replace(/_/g, ' ').toUpperCase()}</p>
@@ -123,7 +120,7 @@ export default function VoterFlow({ onExit }) {
         
         <button 
           onClick={onExit}
-          style={{ position: 'absolute', top: '20px', right: '20px', background: 'var(--border-color)', border: '1px solid var(--border-color)', borderRadius: '100px', padding: '0.5rem 1rem', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s' }}
+          style={{ position: 'absolute', top: '10px', right: '10px', background: 'var(--border-color)', border: '1px solid var(--border-color)', borderRadius: '100px', padding: '0.4rem 0.8rem', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.2s', zIndex: 10 }}
           title="Exit Voting Booth"
         >
           Exit Booth

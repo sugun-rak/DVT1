@@ -198,13 +198,13 @@ function App() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
       {/* Guest Session Expiry Banner */}
       {showExpiredBanner && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
           background: 'linear-gradient(90deg, #7f1d1d, #991b1b)',
-          padding: '1rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap',
           gap: '1rem', borderBottom: '2px solid #ef4444'
         }}>
           <span style={{ fontSize: '1.5rem' }}>⏰</span>
@@ -218,10 +218,10 @@ function App() {
       {/* Guest Session Live Countdown Banner */}
       {managementSession && guestExpiring !== null && (
         <div style={{
-          padding: '0.4rem 1.5rem',
+          padding: '0.4rem 1rem',
           background: guestExpiring.secondsLeft > 120 ? 'rgba(34,197,94,0.12)' : guestExpiring.secondsLeft > 60 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.18)',
           borderBottom: `1px solid ${guestExpiring.secondsLeft > 120 ? 'rgba(34,197,94,0.3)' : guestExpiring.secondsLeft > 60 ? 'rgba(245,158,11,0.4)' : 'rgba(239,68,68,0.5)'}`,
-          display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', fontSize: '0.85rem'
+          display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.85rem', textAlign: 'center'
         }}>
           <span>🔑 Guest Demo Session</span>
           <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '1rem', color: guestExpiring.secondsLeft > 120 ? 'var(--success-color)' : guestExpiring.secondsLeft > 60 ? 'var(--warning-color)' : 'var(--error-color)' }}>
@@ -231,7 +231,7 @@ function App() {
         </div>
       )}
 
-      <header style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '1rem 2rem', gap: '10px', background: 'var(--panel-inner-bg)', borderBottom: '1px solid var(--border-color)' }}>
+      <header style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', padding: '1rem', gap: '10px', background: 'var(--panel-inner-bg)', borderBottom: '1px solid var(--border-color)' }}>
         <button className="btn btn-secondary" onClick={toggleTheme} style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }} title="Toggle Light/Dark Mode">
           <span>{theme === 'dark' ? '☀️' : '🌙'}</span> {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
         </button>
