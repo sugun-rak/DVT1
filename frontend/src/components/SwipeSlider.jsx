@@ -24,7 +24,7 @@ export default function SwipeSlider({ label, onConfirm, color = 'var(--primary-c
     if (!isSwiping || confirmed) return;
     const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
     const delta = currentX - startX.current;
-    const maxWidth = containerRef.current.offsetWidth - 60; // 60 is knob width
+    const maxWidth = containerRef.current.offsetWidth - 42; // 42 is knob width + padding
     const newPos = Math.max(0, Math.min(delta, maxWidth));
     setSwipePos(newPos);
     
@@ -77,9 +77,9 @@ export default function SwipeSlider({ label, onConfirm, color = 'var(--primary-c
       style={{
         position: 'relative',
         width: '100%',
-        height: '60px',
+        height: '46px',
         background: 'var(--panel-inner-bg)',
-        borderRadius: '30px',
+        borderRadius: '23px',
         overflow: 'hidden',
         border: `1px solid ${confirmed ? color : 'var(--border-color)'}`,
         cursor: disabled ? 'not-allowed' : 'pointer',
@@ -95,7 +95,7 @@ export default function SwipeSlider({ label, onConfirm, color = 'var(--primary-c
           left: 0,
           top: 0,
           height: '100%',
-          width: `${swipePos + 60}px`,
+          width: `${swipePos + 42}px`,
           background: color,
           opacity: opacity,
           transition: isSwiping ? 'none' : 'width 0.3s, opacity 0.3s'
@@ -106,9 +106,9 @@ export default function SwipeSlider({ label, onConfirm, color = 'var(--primary-c
         style={{
           position: 'absolute',
           left: `${swipePos}px`,
-          top: '5px',
-          width: '50px',
-          height: '50px',
+          top: '3px',
+          width: '38px',
+          height: '38px',
           background: 'white',
           borderRadius: '50%',
           display: 'flex',

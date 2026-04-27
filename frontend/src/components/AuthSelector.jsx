@@ -262,26 +262,26 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
 
         <div style={{ textAlign: 'left', marginBottom: '2rem' }}>
           <label className="metric-label">{t('enter_pin', 'Secure PIN')}</label>
-          <div className="input-field" style={{ 
-            fontSize: '2.5rem', letterSpacing: '12px', height: '70px', 
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            borderColor: pinValue.length === 4 ? 'var(--success-color)' : 'var(--primary-color)', 
-            boxShadow: `0 0 20px ${pinValue.length === 4 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.1)'}`,
-            background: 'var(--panel-inner-bg)', borderRadius: '16px', fontFamily: 'Outfit', fontWeight: '800'
-          }}>
-            {pinValue.split('').map(() => '•').join('')}
-            {pinValue.length < 4 && <span style={{ width: '3px', height: '35px', background: 'var(--primary-color)', marginLeft: '8px', animation: 'blink 1s step-end infinite' }}></span>}
-          </div>
+          <input 
+            type="password" 
+            inputMode="numeric" 
+            maxLength="4"
+            className="input-field" 
+            value={pinValue}
+            onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ''))}
+            autoFocus
+            style={{ 
+              fontSize: '2.5rem', letterSpacing: '12px', textAlign: 'center', height: '70px', 
+              borderColor: pinValue.length === 4 ? 'var(--success-color)' : 'var(--border-color-hover)', 
+              boxShadow: `0 0 20px ${pinValue.length === 4 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.1)'}`,
+              background: 'var(--panel-inner-bg)', borderRadius: '16px', fontFamily: 'Outfit', fontWeight: '800'
+            }}
+          />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '1.5rem' }}>
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-            <button key={num} type="button" className="btn btn-secondary" onClick={() => handlePinDigit(num.toString())} style={{ padding: '1.2rem', fontSize: '1.5rem', borderRadius: '12px', background: 'var(--btn-secondary-bg)' }}>{num}</button>
-          ))}
-          <button type="button" className="btn btn-secondary" onClick={handlePinDelete} style={{ padding: '1.2rem', fontSize: '1.2rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5' }}>⌫</button>
-          <button type="button" className="btn btn-secondary" onClick={() => handlePinDigit('0')} style={{ padding: '1.2rem', fontSize: '1.5rem', borderRadius: '12px', background: 'var(--btn-secondary-bg)' }}>0</button>
-          <button type="button" className="btn btn-primary" onClick={submitLogin} disabled={loading || pinValue.length !== 4} style={{ padding: '1.2rem', fontSize: '1.5rem', borderRadius: '12px' }}>✓</button>
-        </div>
+        <button className="btn btn-primary" onClick={submitLogin} disabled={loading || pinValue.length !== 4} style={{ width: '100%', padding: '1.2rem', fontSize: '1.2rem', borderRadius: '16px', marginBottom: '1.5rem' }}>
+          {loading ? 'Authenticating...' : 'Login Securely'}
+        </button>
 
         {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', color: '#fca5a5', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem' }}>{error}</div>}
       </div>

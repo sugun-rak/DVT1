@@ -249,9 +249,10 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
   const currentArea = constituencies.find(c => c.id === constituency_id);
   const leadingParty = stats.party_stats && stats.party_stats.length > 0 ? stats.party_stats[0] : null;
   const onlineMachinesCount = healthData.filter(h => h.is_active).length;
+  const maxVotes = Math.max(...healthData.map(h => h.total_votes), 1);
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1800px', width: '100%', margin: '0 auto', overflowX: 'hidden' }}>
+    <div style={{ padding: 'clamp(1rem, 3vw, 2rem)', maxWidth: '1800px', width: '100%', margin: '0 auto', overflowX: 'hidden' }}>
       
       {/* 🔮 GLOBAL HEADER */}
       <div className="glass-panel animate-fade-in" style={{ padding: '1.5rem', marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', borderRadius: '24px' }}>
@@ -284,7 +285,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
         <div className="animate-fade-in">
           <div className="bento-grid" style={{ marginBottom: '1.5rem' }}>
             {/* Bento 1: Total Votes */}
-            <div className="glass-panel glow-primary animate-float" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div className="glass-panel glow-primary animate-float" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div className="metric-label">Total Valid Votes</div>
               <div className="metric-value primary">{stats.total_votes.toLocaleString()}</div>
               <div style={{ marginTop: '1rem', height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
@@ -293,7 +294,7 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
             </div>
 
             {/* Bento 2: Turnout / Participation */}
-            <div className="glass-panel glow-success animate-float" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', animationDelay: '0.2s' }}>
+            <div className="glass-panel glow-success animate-float" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', animationDelay: '0.2s' }}>
               <div className="metric-label">Verified Participation</div>
               <div className="metric-value success">{stats.participation_count.toLocaleString()}</div>
               <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -307,11 +308,11 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
             </div>
 
             {/* Bento 3: Leading Party Insight */}
-            <div className="glass-panel glow-warning animate-float" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', animationDelay: '0.4s' }}>
+            <div className="glass-panel glow-warning animate-float" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', animationDelay: '0.4s' }}>
               <div className="metric-label">Current Leader</div>
               {leadingParty ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                      <div style={{ fontSize: '4rem', filter: 'drop-shadow(0 0 10px rgba(245, 158, 11, 0.4))' }}>{leadingParty.symbol}</div>
+                      <div style={{ fontSize: '3rem', filter: 'drop-shadow(0 0 10px rgba(245, 158, 11, 0.4))' }}>{leadingParty.symbol}</div>
                       <div>
                           <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--warning-color)' }}>{leadingParty.party_name}</div>
                           <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{leadingParty.vote_count.toLocaleString()} votes</div>
@@ -444,7 +445,14 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
                             {c.is_active ? (c.ballot_enabled ? '✅ Unlocked' : '🔒 Locked') : '—'}
                         </span>
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{c.total_votes}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                            <div style={{ width: '80px', height: '6px', background: 'var(--panel-inner-bg)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${(c.total_votes / maxVotes) * 100}%`, height: '100%', background: 'var(--primary-color)' }}></div>
+                            </div>
+                            <span style={{ minWidth: '40px' }}>{c.total_votes}</span>
+                        </div>
+                    </td>
                   </tr>
                 ))}
                 {filteredHealth.length === 0 && (
