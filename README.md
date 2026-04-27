@@ -156,6 +156,12 @@ Because this app is often hosted on "Free Tier" services (like Render), the serv
 - **The "Waking up" Screen**: When you first open the app, it checks if the backend is awake. If not, it shows an engaging screen with voting facts while the servers boot up.
 - **Keep-Alive**: The `health` endpoints are designed to be pinged by external cron jobs (like cron-job.org) to keep the database and services awake during active hours.
 
+### 🌊 Premium Fluid UX & Intelligent Layouts
+The DVT1 interface is built with an "Edge-to-Edge" product design philosophy:
+- **Native OS Integration**: Authentication forms leverage native numeric inputs to automatically trigger device-specific keyboards on mobile/tablets, eliminating bulky custom on-screen keypads.
+- **Dynamic Data Visualization**: Admin tables use auto-scaling inline progress bars to visualize vote density across the network, making heavy data instantly readable at a glance.
+- **True Cross-Device Fluidity**: Using CSS `clamp()` and adaptive grids, the UI scales intelligently from 320px mobile screens up to massive 1800px ultra-wide desktop monitors without wasting screen real estate.
+
 ---
 
 ## 🔍 Troubleshooting Guide

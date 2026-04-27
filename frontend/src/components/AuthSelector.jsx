@@ -44,33 +44,9 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
     }
   }, [view]);
 
-  // Keyboard Event Listener for PIN Pad
-  const handleKeyDown = useCallback((e) => {
-    if (view !== 'login') return;
-    
-    if (e.key >= '0' && e.key <= '9') {
-      if (pinValue.length < 4) {
-        setPinValue(prev => prev + e.key);
-      }
-    } else if (e.key === 'Backspace') {
-      setPinValue(prev => prev.slice(0, -1));
-    } else if (e.key === 'Enter' && pinValue.length === 4) {
-      submitLogin(e);
-    }
-  }, [view, pinValue, pinUser, selectedRole]);
 
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
 
-  const handlePinDigit = (digit) => {
-    if (pinValue.length < 4) setPinValue(prev => prev + digit);
-  };
 
-  const handlePinDelete = () => {
-    setPinValue(prev => prev.slice(0, -1));
-  };
 
   const proceedToLogin = () => {
     if (!selectedRole) {
