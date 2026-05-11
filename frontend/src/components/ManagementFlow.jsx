@@ -557,12 +557,14 @@ export default function ManagementFlow({ managementSession, onLogout, onBack }) 
 
                   {wipeConfirmation && (
                       <div className="animate-fade-in" style={{ marginTop: '1rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', borderRadius: '12px' }}>
-                          <p style={{ fontSize: '0.85rem', marginBottom: '1rem', color: '#fca5a5' }}>Security override. Enter 4-digit Officer PIN to confirm irreversible wipe:</p>
-                          <input type="password" maxLength="4" className="input-field" value={wipePin} onChange={e => setWipePin(e.target.value)} style={{ textAlign: 'center', fontSize: '2rem', letterSpacing: '8px', background: 'var(--panel-inner-bg)' }} />
-                          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => handleOfficerAction('cancel_wipe')}>Cancel</button>
-                              <button className="btn btn-primary" style={{ flex: 1, background: 'var(--error-color)', boxShadow: '0 0 15px rgba(239, 68, 68, 0.4)' }} onClick={() => handleOfficerAction('wipe')} disabled={wipePin.length !== 4}>CONFIRM WIPE</button>
-                          </div>
+                          <form onSubmit={(e) => { e.preventDefault(); handleOfficerAction('wipe'); }}>
+                              <p style={{ fontSize: '0.85rem', marginBottom: '1rem', color: '#fca5a5' }}>Security override. Enter 4-digit Officer PIN to confirm irreversible wipe:</p>
+                              <input type="password" maxLength="4" className="input-field" value={wipePin} onChange={e => setWipePin(e.target.value)} style={{ textAlign: 'center', fontSize: '2rem', letterSpacing: '8px', background: 'var(--panel-inner-bg)' }} autoFocus />
+                              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                                  <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => handleOfficerAction('cancel_wipe')}>Cancel</button>
+                                  <button type="submit" className="btn btn-primary" style={{ flex: 1, background: 'var(--error-color)', boxShadow: '0 0 15px rgba(239, 68, 68, 0.4)' }} disabled={wipePin.length !== 4}>CONFIRM WIPE</button>
+                              </div>
+                          </form>
                       </div>
                   )}
                 </div>

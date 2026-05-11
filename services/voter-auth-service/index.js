@@ -18,6 +18,7 @@ const transporter = nodemailer.createTransport({
 });
 
 async function sendNotificationEmail(subject, text) {
+    const startTime = Date.now();
     try {
         if (!process.env.SMTP_PASS) {
             console.log(`\n[MOCK EMAIL] To: sugun.rakshit@gmail.com | Subject: ${subject}\nBody: ${text}\n`);
@@ -29,13 +30,20 @@ async function sendNotificationEmail(subject, text) {
             subject: `Detail Notification for the DVS Services: ${subject}`,
             text: text
         });
+        const duration = Date.now() - startTime;
+        console.log(`[SMTP SUCCESS] Notification sent in ${duration}ms: ${subject}`);
+        if (duration > 3000) {
+            console.warn(`[SMTP LATENCY WARNING] SMTP server is slow. Took ${duration}ms to send notification.`);
+        }
     } catch (e) {
-        console.error("Email failed to send:", e);
+        const duration = Date.now() - startTime;
+        console.error(`[SMTP FAILURE] Failed to send notification after ${duration}ms:`, e.message);
     }
 }
 
 // Send email to a specific guest recipient (HTML formatted)
 async function sendGuestEmail(to, subject, htmlBody) {
+    const startTime = Date.now();
     try {
         if (!process.env.SMTP_PASS) {
             console.log(`\n[MOCK GUEST EMAIL] To: ${to} | Subject: ${subject}\n`);
@@ -47,8 +55,14 @@ async function sendGuestEmail(to, subject, htmlBody) {
             subject: subject,
             html: htmlBody
         });
+        const duration = Date.now() - startTime;
+        console.log(`[SMTP SUCCESS] Guest email sent to ${to} in ${duration}ms: ${subject}`);
+        if (duration > 3000) {
+            console.warn(`[SMTP LATENCY WARNING] SMTP server is slow. Took ${duration}ms to send guest email.`);
+        }
     } catch (e) {
-        console.error("Guest email failed to send:", e);
+        const duration = Date.now() - startTime;
+        console.error(`[SMTP FAILURE] Failed to send guest email to ${to} after ${duration}ms:`, e.message);
     }
 }
 
@@ -395,7 +409,7 @@ app.post('/guest/register', async (req, res) => {
         guest_pins.set(officerPin, { role: 'officer', universal: true, session: sharedSession });
         
         // Owner notification
-        await sendNotificationEmail('New Guest Beta Tester Registered', 
+        sendNotificationEmail('New Guest Beta Tester Registered', 
             `User ${name} (${email}) has registered. Timer will start on their first login.\n` +
             `SuperAdmin PIN: ${superadminPin}\nAdmin PIN: ${adminPin}\nOfficer PIN: ${officerPin}`
         );
@@ -407,7 +421,7 @@ app.post('/guest/register', async (req, res) => {
             expiresAt: Date.now() + 15 * 60 * 1000, // Just for display in email as "Example"
             guestTimezone, timezoneOffsetMinutes 
         });
-        await sendGuestEmail(email, '🗳️ DVS Demo Access — Your Temporary PINs (15 min)', guestHtml);
+        sendGuestEmail(email, '🗳️ DVS Demo Access — Your Temporary PINs (15 min)', guestHtml);
         
         res.json({ success: true, adminPin, superadminPin, officerPin });
     } catch (err) { res.status(500).json({ error: 'Failed to generate guest pins' }); }
@@ -442,7 +456,7 @@ app.post('/guest/expired-notify', async (req, res) => {
         const offsetMins = typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0;
 
         const html = buildGuestExpiredEmail({ guestName: name, expiredAt: expiredDate, guestTimezone, timezoneOffsetMinutes: offsetMins });
-        await sendGuestEmail(email, '⏰ DVS Demo Session Expired — Request New Access', html);
+        sendGuestEmail(email, '⏰ DVS Demo Session Expired — Request New Access', html);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Failed to send expiry notification' }); }
 });
@@ -488,7 +502,7 @@ app.post('/admin/login', async (req, res) => {
         recordAttempt(username, true);
         // Determine role from username
         const role = admin.username === 'superadmin' ? 'superadmin' : 'admin';
-        await sendNotificationEmail('Owner Admin Login', `The permanent Owner (${username}, role: ${role}) account was just used to log in at ${new Date().toISOString()}.`);
+        sendNotificationEmail('Owner Admin Login', `The permanent Owner (${username}, role: ${role}) account was just used to log in at ${new Date().toISOString()}.`);
         const token = jwt.sign({ id: admin.id, role }, JWT_SECRET, { expiresIn: '8h' });
         res.json({ token, role });
     } catch (err) { res.status(500).json({ error: 'Database error' }); }
@@ -532,7 +546,7 @@ app.post('/officer/login', async (req, res) => {
         }
         
         recordAttempt(username, true);
-        await sendNotificationEmail('Owner Officer Login', `The permanent Owner Officer account (${username}) was just used to log in at ${new Date().toISOString()}.`);
+        sendNotificationEmail('Owner Officer Login', `The permanent Owner Officer account (${username}) was just used to log in at ${new Date().toISOString()}.`);
         const token = jwt.sign({ id: officer.id, role: 'officer', constituency_id: officer.constituency_id }, JWT_SECRET, { expiresIn: '8h' });
         res.json({ token, role: 'officer', constituency_id: officer.constituency_id });
     } catch (err) { res.status(500).json({ error: 'Database error' }); }

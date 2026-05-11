@@ -183,31 +183,33 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
                   <h2 className="font-heading" style={{ flex: 1, margin: 0, textAlign: 'center' }}>{t('select_management_role', 'Select Role')}</h2>
               </div>
               
-              <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
-                  <label className="metric-label">{t('role', 'System Role')}</label>
-                  <select className="input-field" value={selectedRole} onChange={e => { setSelectedRole(e.target.value); setPinUser(''); setError(null); }} style={{ borderRadius: '12px', padding: '1.2rem' }}>
-                      <option value="">-- {t('role', 'Select Role')} --</option>
-                      <option value="officer">🛂 {t('polling_officer', 'Polling Officer')}</option>
-                      <option value="admin">🛡️ {t('general_admin', 'General Admin')}</option>
-                      <option value="superadmin">👑 {t('super_admin', 'Super Admin')}</option>
-                  </select>
-              </div>
-
-              {selectedRole === 'officer' && (
-                  <div className="animate-fade-in" style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
-                      <label className="metric-label">{t('assigned_area', 'Assigned Constituency')}</label>
-                      <select className="input-field" value={pinUser} onChange={e => setPinUser(e.target.value)} style={{ borderRadius: '12px', padding: '1.2rem' }}>
-                          <option value="">{t('choose_constituency', '-- Select Area --')}</option>
-                          {constituencies.map(c => (
-                              <option key={c.id} value={`officer_${c.id}`}>{c.name}</option>
-                          ))}
+              <form onSubmit={(e) => { e.preventDefault(); proceedToLogin(); }}>
+                  <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+                      <label className="metric-label">{t('role', 'System Role')}</label>
+                      <select className="input-field" value={selectedRole} onChange={e => { setSelectedRole(e.target.value); setPinUser(''); setError(null); }} style={{ borderRadius: '12px', padding: '1.2rem' }}>
+                          <option value="">-- {t('role', 'Select Role')} --</option>
+                          <option value="officer">🛂 {t('polling_officer', 'Polling Officer')}</option>
+                          <option value="admin">🛡️ {t('general_admin', 'General Admin')}</option>
+                          <option value="superadmin">👑 {t('super_admin', 'Super Admin')}</option>
                       </select>
                   </div>
-              )}
 
-              {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', color: '#fca5a5', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.9rem' }}>{error}</div>}
-              
-              <button className="btn btn-primary" onClick={proceedToLogin} style={{ width: '100%', padding: '1.2rem', borderRadius: '16px', fontSize: '1.1rem' }}>{t('proceed', 'Proceed to Authentication')}</button>
+                  {selectedRole === 'officer' && (
+                      <div className="animate-fade-in" style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+                          <label className="metric-label">{t('assigned_area', 'Assigned Constituency')}</label>
+                          <select className="input-field" value={pinUser} onChange={e => setPinUser(e.target.value)} style={{ borderRadius: '12px', padding: '1.2rem' }}>
+                              <option value="">{t('choose_constituency', '-- Select Area --')}</option>
+                              {constituencies.map(c => (
+                                  <option key={c.id} value={`officer_${c.id}`}>{c.name}</option>
+                              ))}
+                          </select>
+                      </div>
+                  )}
+
+                  {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', color: '#fca5a5', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.9rem' }}>{error}</div>}
+                  
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1.2rem', borderRadius: '16px', fontSize: '1.1rem' }}>{t('proceed', 'Proceed to Authentication')}</button>
+              </form>
               
               <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
                   <p className="metric-label" style={{ color: 'var(--primary-color)', marginBottom: '1rem' }}>Beta Testing Program</p>
@@ -231,33 +233,35 @@ export default function AuthSelector({ onManagementLogin, onEnterPublicVoting, i
             <h2 className="font-heading" style={{ flex: 1, margin: 0 }}>{selectedRole === 'officer' ? t('officer_setup', 'Kiosk Setup') : t('admin_login', 'Admin Access')}</h2>
         </div>
         
-        <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
-            <label className="metric-label">{selectedRole === 'officer' ? t('assigned_area_id', 'Assigned Area ID') : t('username', 'Username')}</label>
-            <input type="text" className="input-field" value={pinUser} disabled style={{ background: 'var(--panel-inner-bg)', opacity: 0.7 }} />
-        </div>
+        <form onSubmit={submitLogin}>
+          <div style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+              <label className="metric-label">{selectedRole === 'officer' ? t('assigned_area_id', 'Assigned Area ID') : t('username', 'Username')}</label>
+              <input type="text" className="input-field" value={pinUser} disabled style={{ background: 'var(--panel-inner-bg)', opacity: 0.7 }} />
+          </div>
 
-        <div style={{ textAlign: 'left', marginBottom: '2rem' }}>
-          <label className="metric-label">{t('enter_pin', 'Secure PIN')}</label>
-          <input 
-            type="password" 
-            inputMode="numeric" 
-            maxLength="4"
-            className="input-field" 
-            value={pinValue}
-            onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ''))}
-            autoFocus
-            style={{ 
-              fontSize: '2.5rem', letterSpacing: '12px', textAlign: 'center', height: '70px', 
-              borderColor: pinValue.length === 4 ? 'var(--success-color)' : 'var(--border-color-hover)', 
-              boxShadow: `0 0 20px ${pinValue.length === 4 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.1)'}`,
-              background: 'var(--panel-inner-bg)', borderRadius: '16px', fontFamily: 'Outfit', fontWeight: '800'
-            }}
-          />
-        </div>
+          <div style={{ textAlign: 'left', marginBottom: '2rem' }}>
+            <label className="metric-label">{t('enter_pin', 'Secure PIN')}</label>
+            <input 
+              type="password" 
+              inputMode="numeric" 
+              maxLength="4"
+              className="input-field" 
+              value={pinValue}
+              onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ''))}
+              autoFocus
+              style={{ 
+                fontSize: '2.5rem', letterSpacing: '12px', textAlign: 'center', height: '70px', 
+                borderColor: pinValue.length === 4 ? 'var(--success-color)' : 'var(--border-color-hover)', 
+                boxShadow: `0 0 20px ${pinValue.length === 4 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.1)'}`,
+                background: 'var(--panel-inner-bg)', borderRadius: '16px', fontFamily: 'Outfit', fontWeight: '800'
+              }}
+            />
+          </div>
 
-        <button className="btn btn-primary" onClick={submitLogin} disabled={loading || pinValue.length !== 4} style={{ width: '100%', padding: '1.2rem', fontSize: '1.2rem', borderRadius: '16px', marginBottom: '1.5rem' }}>
-          {loading ? 'Authenticating...' : 'Login Securely'}
-        </button>
+          <button type="submit" className="btn btn-primary" disabled={loading || pinValue.length !== 4} style={{ width: '100%', padding: '1.2rem', fontSize: '1.2rem', borderRadius: '16px', marginBottom: '1.5rem' }}>
+            {loading ? 'Authenticating...' : 'Login Securely'}
+          </button>
+        </form>
 
         {error && <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error-color)', color: '#fca5a5', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem' }}>{error}</div>}
       </div>
