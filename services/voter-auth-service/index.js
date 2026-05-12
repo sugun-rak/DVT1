@@ -534,6 +534,11 @@ app.post('/guest/register', async (req, res) => {
     } catch (err) { res.status(500).json({ error: 'Failed to generate guest pins' }); }
 });
 
+// Admin: WhatsApp Status Endpoint
+app.get('/admin/whatsapp-status', (req, res) => {
+    res.json({ ready: whatsappReady, qr: lastQR });
+});
+
 // Admin: WhatsApp QR Code Viewer
 app.get('/admin/whatsapp-qr', async (req, res) => {
     if (whatsappReady) {
@@ -565,8 +570,30 @@ app.get('/admin/whatsapp-qr', async (req, res) => {
                 <div style="background: white; display: inline-block; padding: 20px; border-radius: 10px; margin: 20px 0;">
                     <img src="${qrImage}" style="width: 300px; height: 300px;" />
                 </div>
-                <p style="color: #94a3b8; font-size: 0.9em;">This code refreshes automatically. Once scanned, this page will update.</p>
-                <script>setInterval(() => { if (!document.hidden) window.location.reload(); }, 15000);</script>
+                <p style="color: #fcd34d; font-size: 1.1em; font-weight: bold; margin-top: 10px;" id="status-text">Waiting for scan...</p>
+                <p style="color: #94a3b8; font-size: 0.9em; max-width: 500px; margin: 0 auto;">When you scan the code, your phone will say "Logging in". <b>Do not refresh this page.</b> The server is downloading your messages to sync, which can take up to 2 minutes. It will automatically update when finished.</p>
+                <script>
+                    const currentQr = "${lastQR}";
+                    setInterval(async () => {
+                        try {
+                            const res = await fetch('/admin/whatsapp-status');
+                            if (!res.ok) {
+                                document.getElementById('status-text').innerText = "⚠️ Syncing in progress... Please wait.";
+                                document.getElementById('status-text').style.color = "#fb923c";
+                                return;
+                            }
+                            const data = await res.json();
+                            if (data.ready) {
+                                window.location.reload();
+                            } else if (data.qr && data.qr !== currentQr) {
+                                window.location.reload();
+                            }
+                        } catch (e) {
+                            document.getElementById('status-text').innerText = "⚠️ Server is busy syncing... Please keep your phone screen on.";
+                            document.getElementById('status-text').style.color = "#fb923c";
+                        }
+                    }, 5000);
+                </script>
             </div>
         `);
     } catch (err) {
