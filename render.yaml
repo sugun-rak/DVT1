@@ -30,6 +30,14 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: ADMIN_PHONE
+        sync: false
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/project/puppeteer
       - key: ELECTION_SERVICE_URL
         fromService:
           type: web
