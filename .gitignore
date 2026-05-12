@@ -4,3 +4,7 @@ dist
 build
 .DS_Store
 *.db
+.wwebjs_auth/**/Cache/
+.wwebjs_auth/**/Code Cache/
+.wwebjs_auth/**/GPUCache/
+.wwebjs_auth/**/Network/

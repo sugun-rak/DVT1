@@ -1,0 +1,14 @@
+2026/05/12-19:59:23.756 6618 Creating DB C:\Users\RAKSHIT\DVT1\services\voter-auth-service\.wwebjs_auth\session-dvt1-voter-auth\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb since it was missing.
+2026/05/12-19:59:25.203 6618 Reusing MANIFEST C:\Users\RAKSHIT\DVT1\services\voter-auth-service\.wwebjs_auth\session-dvt1-voter-auth\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/05/12-20:50:19.161 36c4 Level-0 table #5: started
+2026/05/12-20:50:49.233 36c4 Level-0 table #5: 1522486 bytes OK
+2026/05/12-20:50:49.609 36c4 Delete type=0 #3
+2026/05/12-21:19:06.296 1e40 Level-0 table #7: started
+2026/05/12-21:20:03.108 1e40 Level-0 table #7: 1501783 bytes OK
+2026/05/12-21:20:05.323 1e40 Delete type=0 #4
+2026/05/12-21:20:32.196 1e40 Compacting 1@1 + 1@2 files
+2026/05/12-21:20:44.606 1e40 Generated table #8@1: 7016 keys, 527179 bytes
+2026/05/12-21:20:44.606 1e40 Compacted 1@1 + 1@2 files => 527179 bytes
+2026/05/12-21:20:44.608 1e40 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/05/12-21:20:45.492 1e40 Delete type=2 #5
+2026/05/12-21:20:45.493 1e40 Delete type=2 #7
