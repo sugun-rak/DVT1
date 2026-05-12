@@ -3,6 +3,7 @@ import { API_URL } from '../config';
 
 export default function GuestRegistration({ onBack }) {
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -47,13 +48,13 @@ export default function GuestRegistration({ onBack }) {
       const res = await fetch(`${API_URL}/verification/guest/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name, timezone, timezoneOffsetMinutes })
+        body: JSON.stringify({ email, phone, name, timezone, timezoneOffsetMinutes })
       });
       const data = await res.json();
       
       if (res.ok) {
         setGuestPins(data);
-        sessionStorage.setItem('dvt_guest_info', JSON.stringify({ email, name, timezone, timezoneOffsetMinutes, expiresAt: data.expiresAt }));
+        sessionStorage.setItem('dvt_guest_info', JSON.stringify({ email, phone, name, timezone, timezoneOffsetMinutes, expiresAt: data.expiresAt }));
       } else {
         setError(data.error || 'Failed to register guest session');
       }
@@ -74,10 +75,10 @@ export default function GuestRegistration({ onBack }) {
         <form onSubmit={handleRegister} className="animate-fade-in">
           <p style={{ marginBottom: '2rem', color: 'var(--text-secondary)', fontSize: '0.95rem', textAlign: 'center', lineHeight: 1.6 }}>
             Register to receive temporary 15-minute PINs to test all 3 management roles across the entire DVS platform.
-            <br /><span style={{ color: 'var(--primary-color)', fontSize: '0.85rem', fontWeight: 'bold' }}>📧 PINs will also be emailed to you.</span>
+            <br /><span style={{ color: 'var(--primary-color)', fontSize: '0.85rem', fontWeight: 'bold' }}>📧 PINs will be sent via Email & WhatsApp.</span>
           </p>
           
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: '1.2rem' }}>
             <label className="metric-label">Full Name</label>
             <input 
               type="text" 
@@ -88,7 +89,7 @@ export default function GuestRegistration({ onBack }) {
               required 
             />
           </div>
-          <div style={{ marginBottom: '2rem' }}>
+          <div style={{ marginBottom: '1.2rem' }}>
             <label className="metric-label">Email Address</label>
             <input 
               type="email" 
@@ -98,6 +99,17 @@ export default function GuestRegistration({ onBack }) {
               onChange={e => setEmail(e.target.value)} 
               required 
             />
+          </div>
+          <div style={{ marginBottom: '2rem' }}>
+            <label className="metric-label">WhatsApp Number (Optional)</label>
+            <input 
+              type="tel" 
+              className="input-field" 
+              placeholder="e.g. +91 98765 43210" 
+              value={phone} 
+              onChange={e => setPhone(e.target.value)} 
+            />
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Include country code (e.g. +91)</p>
           </div>
           
           {error && <div style={{ color: '#fca5a5', marginBottom: '1.5rem', padding: '1rem', background: 'rgba(239,68,68,0.1)', border: '1px solid var(--error-color)', borderRadius: '8px', fontSize: '0.9rem' }}>{error}</div>}
@@ -110,7 +122,7 @@ export default function GuestRegistration({ onBack }) {
         <div className="animate-fade-in" style={{ textAlign: 'center' }}>
           <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--success-color)', marginBottom: '1.5rem', boxShadow: '0 0 20px rgba(16, 185, 129, 0.1)' }}>
             <h3 className="font-heading" style={{ color: 'var(--success-color)', margin: '0 0 0.5rem 0' }}>✅ Active Session</h3>
-            <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Check your email inbox for a copy.</p>
+            <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Check your WhatsApp and Email for a copy.</p>
             
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.5rem',

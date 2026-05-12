@@ -8,22 +8,96 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode');
+
+// --- WhatsApp Mirroring Setup ---
+let lastQR = null;
+let whatsappReady = false;
+
+const whatsappClient = new Client({
+    authStrategy: new LocalAuth({ clientId: "dvt1-voter-auth" }),
+    puppeteer: {
+        handleSIGINT: false,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    }
+});
+
+whatsappClient.on('qr', (qr) => {
+    lastQR = qr;
+    whatsappReady = false;
+    console.log('[WHATSAPP] New QR Code generated. Scan it at /admin/whatsapp-qr');
+});
+
+whatsappClient.on('ready', () => {
+    lastQR = null;
+    whatsappReady = true;
+    console.log('[WHATSAPP SUCCESS] Mirroring is active. Messages will send from your number.');
+});
+
+whatsappClient.on('disconnected', (reason) => {
+    whatsappReady = false;
+    console.warn('[WHATSAPP DISCONNECTED] Reason:', reason);
+    sendNotificationEmail('⚠️ WhatsApp Mirror Disconnected', 
+        `Your WhatsApp Mirror has disconnected (Reason: ${reason}).\n\n` +
+        `Please visit the admin dashboard or /admin/whatsapp-qr to re-scan the QR code and restore service.`
+    );
+});
+
+whatsappClient.initialize().catch(err => console.error('[WHATSAPP INIT ERROR]', err.message));
+
+async function sendWhatsApp(to, body) {
+    if (!whatsappReady) return false;
+    try {
+        // Format number: remove +, spaces, and ensure it ends with @c.us
+        let cleanNumber = to.replace(/\D/g, '');
+        if (!cleanNumber.endsWith('@c.us')) cleanNumber += '@c.us';
+        
+        await whatsappClient.sendMessage(cleanNumber, body);
+        console.log(`[WHATSAPP SUCCESS] Message sent to ${to}`);
+        return true;
+    } catch (err) {
+        console.error(`[WHATSAPP FAILURE] Failed to send to ${to}:`, err.message);
+        return false;
+    }
+}
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Use SSL
     auth: {
         user: process.env.SMTP_USER || 'sugun.rakshit@gmail.com',
         pass: process.env.SMTP_PASS || ''
+    },
+    pool: true,            // Reuse connections
+    maxConnections: 5,     // Limit concurrent connections
+    maxMessages: 100       // Limit messages per connection
+});
+
+// Verify SMTP connection on startup
+transporter.verify((error, success) => {
+    if (error) {
+        console.error('[SMTP VERIFY FAILURE] Connection failed:', error.message);
+        if (error.code === 'EAUTH') {
+            console.error('[SMTP ADVICE] Authentication failed. If using Gmail, verify your App Password and ensure 2-Step Verification is enabled.');
+        }
+    } else {
+        console.log('[SMTP SUCCESS] Email server is ready to deliver notifications.');
     }
 });
 
 async function sendNotificationEmail(subject, text) {
     const startTime = Date.now();
     try {
+        // Try WhatsApp first as a modern notification
+        const waSuccess = await sendWhatsApp(process.env.ADMIN_PHONE || '917002011030', `*DVS ALERT*: ${subject}\n\n${text}`);
+        
         if (!process.env.SMTP_PASS) {
-            console.log(`\n[MOCK EMAIL] To: sugun.rakshit@gmail.com | Subject: ${subject}\nBody: ${text}\n`);
+            if (!waSuccess) console.log(`\n[MOCK EMAIL] To: sugun.rakshit@gmail.com | Subject: ${subject}\nBody: ${text}\n`);
             return;
         }
+
         await transporter.sendMail({
             from: process.env.SMTP_USER || 'sugun.rakshit@gmail.com',
             to: 'sugun.rakshit@gmail.com',
@@ -32,12 +106,26 @@ async function sendNotificationEmail(subject, text) {
         });
         const duration = Date.now() - startTime;
         console.log(`[SMTP SUCCESS] Notification sent in ${duration}ms: ${subject}`);
-        if (duration > 3000) {
-            console.warn(`[SMTP LATENCY WARNING] SMTP server is slow. Took ${duration}ms to send notification.`);
-        }
     } catch (e) {
-        const duration = Date.now() - startTime;
-        console.error(`[SMTP FAILURE] Failed to send notification after ${duration}ms:`, e.message);
+        console.error(`[NOTIFY FAILURE]`, e.message);
+    }
+}
+
+// Send notification to guest via WhatsApp or Email
+async function sendGuestNotification(toEmail, toPhone, subject, htmlBody, plainTextBody) {
+    let sentViaWhatsApp = false;
+    
+    if (toPhone) {
+        sentViaWhatsApp = await sendWhatsApp(toPhone, plainTextBody);
+    }
+
+    // Always send email as the "Master Record", or as fallback if WA failed
+    await sendGuestEmail(toEmail, subject, htmlBody);
+    
+    if (sentViaWhatsApp) {
+        console.log(`[GUEST NOTIFY] Delivered via WhatsApp to ${toPhone}`);
+    } else {
+        console.log(`[GUEST NOTIFY] Delivered via Email only to ${toEmail}`);
     }
 }
 
@@ -62,7 +150,12 @@ async function sendGuestEmail(to, subject, htmlBody) {
         }
     } catch (e) {
         const duration = Date.now() - startTime;
-        console.error(`[SMTP FAILURE] Failed to send guest email to ${to} after ${duration}ms:`, e.message);
+        console.error(`[SMTP FAILURE] Failed to send guest email to ${to} after ${duration}ms:`, {
+            message: e.message,
+            code: e.code,
+            command: e.command,
+            response: e.response
+        });
     }
 }
 
@@ -381,7 +474,7 @@ function recordAttempt(username, success) {
 // Guest Register
 app.post('/guest/register', async (req, res) => {
     try {
-        const { email, name, timezone } = req.body;
+        const { email, name, timezone, phone } = req.body;
         if (!email || !name) return res.status(400).json({ error: 'Email and Name required' });
         
         const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString();
@@ -389,18 +482,17 @@ app.post('/guest/register', async (req, res) => {
         const superadminPin = generatePin();
         const officerPin = generatePin();
         
-        // We don't set expiresAt yet. It starts on first login.
         const guestTimezone = timezone || 'UTC';
         const timezoneOffsetMinutes = typeof req.body.timezoneOffsetMinutes === 'number'
             ? req.body.timezoneOffsetMinutes : 0;
         
-        // This object is shared between all 3 PINs for this registration
         const sharedSession = {
             guestEmail: email,
+            guestPhone: phone,
             guestName: name,
             guestTimezone,
             timezoneOffsetMinutes,
-            expiresAt: null, // Set on first login
+            expiresAt: null, 
             timerStarted: false
         };
         
@@ -410,21 +502,67 @@ app.post('/guest/register', async (req, res) => {
         
         // Owner notification
         sendNotificationEmail('New Guest Beta Tester Registered', 
-            `User ${name} (${email}) has registered. Timer will start on their first login.\n` +
+            `User ${name} (${email}, Phone: ${phone || 'N/A'}) has registered.\n` +
             `SuperAdmin PIN: ${superadminPin}\nAdmin PIN: ${adminPin}\nOfficer PIN: ${officerPin}`
         );
 
         // Guest notification
-        // Note: We show "15 minutes" in email, but it's 15 mins FROM LOGIN.
         const guestHtml = buildGuestAccessEmail({ 
             guestName: name, adminPin, superadminPin, officerPin, 
-            expiresAt: Date.now() + 15 * 60 * 1000, // Just for display in email as "Example"
+            expiresAt: Date.now() + 15 * 60 * 1000, 
             guestTimezone, timezoneOffsetMinutes 
         });
-        sendGuestEmail(email, '🗳️ DVS Demo Access — Your Temporary PINs (15 min)', guestHtml);
+
+        const plainText = `🗳️ DVS Access Granted!\nHello ${name}, your demo PINs (15 min) are:\n\n` +
+            `👑 SuperAdmin: ${superadminPin}\n` +
+            `🛡️ Admin: ${adminPin}\n` +
+            `🗳️ Officer: ${officerPin}\n\n` +
+            `Timer starts on first login. Enjoy!`;
+
+        sendGuestNotification(email, phone, '🗳️ DVS Demo Access — Your Temporary PINs (15 min)', guestHtml, plainText);
         
         res.json({ success: true, adminPin, superadminPin, officerPin });
     } catch (err) { res.status(500).json({ error: 'Failed to generate guest pins' }); }
+});
+
+// Admin: WhatsApp QR Code Viewer
+app.get('/admin/whatsapp-qr', async (req, res) => {
+    if (whatsappReady) {
+        return res.send(`
+            <div style="font-family: sans-serif; text-align: center; padding: 50px; background: #0f172a; color: white; height: 100vh;">
+                <h1 style="color: #22c55e;">✅ WhatsApp Connected</h1>
+                <p>Your number is successfully mirrored. Notifications will send automatically.</p>
+                <button onclick="window.location.reload()" style="padding: 10px 20px; background: #38bdf8; border: none; border-radius: 5px; color: white; cursor: pointer;">Check Status</button>
+            </div>
+        `);
+    }
+
+    if (!lastQR) {
+        return res.send(`
+            <div style="font-family: sans-serif; text-align: center; padding: 50px; background: #0f172a; color: white; height: 100vh;">
+                <h1>⏳ Initializing WhatsApp...</h1>
+                <p>The system is starting up. Please refresh in 10 seconds.</p>
+                <script>setTimeout(() => window.location.reload(), 5000);</script>
+            </div>
+        `);
+    }
+
+    try {
+        const qrImage = await qrcode.toDataURL(lastQR);
+        res.send(`
+            <div style="font-family: sans-serif; text-align: center; padding: 50px; background: #0f172a; color: white; min-height: 100vh;">
+                <h1 style="color: #38bdf8;">📲 Link Your WhatsApp</h1>
+                <p>Scan this QR code with your phone (WhatsApp > Linked Devices) to enable messaging notifications.</p>
+                <div style="background: white; display: inline-block; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <img src="${qrImage}" style="width: 300px; height: 300px;" />
+                </div>
+                <p style="color: #94a3b8; font-size: 0.9em;">This code refreshes automatically. Once scanned, this page will update.</p>
+                <script>setInterval(() => { if (!document.hidden) window.location.reload(); }, 15000);</script>
+            </div>
+        `);
+    } catch (err) {
+        res.status(500).send('Error generating QR code');
+    }
 });
 
 // Guest Expiry Notification — called by frontend when JWT expires
