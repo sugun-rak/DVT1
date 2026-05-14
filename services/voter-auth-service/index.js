@@ -18,6 +18,7 @@ let whatsappReady = false;
 const whatsappClient = new Client({
     authStrategy: new LocalAuth({ clientId: "dvt1-voter-auth" }),
     puppeteer: {
+        headless: 'new',
         handleSIGINT: false,
         args: [
             '--no-sandbox', 
@@ -27,7 +28,9 @@ const whatsappClient = new Client({
             '--no-first-run',
             '--no-zygote',
             '--single-process',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--disable-extensions',
+            '--js-flags="--max-old-space-size=150"'
         ]
     }
 });
