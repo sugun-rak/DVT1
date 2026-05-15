@@ -1,0 +1,7 @@
+node_modules/
+.wwebjs_auth/
+*.db
+.env
+.git/
+.gitignore
+Dockerfile.bak
