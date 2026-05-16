@@ -1,67 +1,83 @@
 const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
-const compression = require('compression');
-
 const axios = require('axios');
-const FailoverProxy = require('./failover-proxy');
 
 const app = express();
-const port = process.env.PORT || 8000;
+const port = process.env.PORT || 8080;
 
-app.use(compression());
-app.use(cors());
+app.use(cors({ origin: '*' }));
 
 // --- MIRROR CONFIGURATION ---
-// These should be comma-separated lists of URLs (e.g., Render, GCP, Azure, Koyeb)
-const verifMirrors = (process.env.VERIF_MIRRORS || process.env.VERIFICATION_SERVICE_URL || 'http://localhost:8001').split(',');
-const votingMirrors = (process.env.VOTING_MIRRORS || process.env.VOTING_SERVICE_URL || 'http://localhost:8002').split(',');
+// Comma-separated list of URLs — Azure first, Render as backup
+const verifMirrors = (process.env.VERIF_MIRRORS || process.env.VERIFICATION_SERVICE_URL || 'http://localhost:8001').split(',').map(s => s.trim()).filter(Boolean);
+const votingMirrors = (process.env.VOTING_MIRRORS || process.env.VOTING_SERVICE_URL || 'http://localhost:8002').split(',').map(s => s.trim()).filter(Boolean);
 
-const verifProxy = new FailoverProxy('Verification', verifMirrors);
-const votingProxy = new FailoverProxy('Voting', votingMirrors);
+console.log('>>> GATEWAY STARTING on port', port);
+console.log('>>> Verification Mirrors:', verifMirrors);
+console.log('>>> Voting Mirrors:', votingMirrors);
 
-// ── Keep-Alive Health Endpoints
+// --- FAILOVER LOGIC ---
+// Tracks which mirror is currently healthy per service
+const activeIndex = { verif: 0, voting: 0 };
+
+async function getHealthyTarget(mirrors, key) {
+  // Start from the last known good index
+  for (let i = 0; i < mirrors.length; i++) {
+    const idx = (activeIndex[key] + i) % mirrors.length;
+    const target = mirrors[idx];
+    try {
+      await axios.get(`${target}/health`, { timeout: 3000 });
+      activeIndex[key] = idx; // Remember the healthy one
+      return target;
+    } catch (e) {
+      console.warn(`[Failover] ${key} mirror ${target} is down. Trying next...`);
+    }
+  }
+  // If all fail, return the first one and let the proxy handle the error
+  console.warn(`[Failover] All ${key} mirrors are down. Defaulting to first.`);
+  return mirrors[0];
+}
+
+// Health endpoint for cron-job heartbeat
 app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'ok', 
-        service: 'api-gateway', 
-        mirrors: { verif: verifMirrors.length, voting: votingMirrors.length },
-        timestamp: new Date().toISOString() 
-    });
+  res.json({
+    status: 'ok',
+    service: 'api-gateway',
+    mirrors: { verif: verifMirrors, voting: votingMirrors },
+    timestamp: new Date().toISOString()
+  });
 });
-app.get('/ping', (req, res) => res.status(200).json({ status: 'ok' }));
-
-// Dynamic Target Resolver for Failover
-const getRouter = async (proxy) => {
-    return await proxy.getActiveTarget();
-};
+app.get('/ping', (req, res) => res.json({ status: 'ok' }));
 
 // Proxy verification requests with Failover
-app.use('/api/verification', createProxyMiddleware({ 
-    router: async () => await verifProxy.getActiveTarget(),
-    target: verifMirrors[0], // Required default
-    changeOrigin: true,
-    pathRewrite: { '^/api/verification': '' },
-    onError: (err, req, res) => {
-        console.error('[Failover] Verification Proxy Error:', err.message);
-        res.status(502).json({ error: 'All verification mirrors are currently unavailable.' });
+app.use('/api/verification', createProxyMiddleware({
+  router: () => getHealthyTarget(verifMirrors, 'verif'),
+  target: verifMirrors[0],
+  changeOrigin: true,
+  pathRewrite: { '^/api/verification': '' },
+  on: {
+    error: (err, req, res) => {
+      console.error('[Failover] Verification Proxy Error:', err.message);
+      res.status(502).json({ error: 'All verification mirrors are currently unavailable.' });
     }
+  }
 }));
 
 // Proxy voting requests with Failover
-app.use('/api/voting', createProxyMiddleware({ 
-    router: async () => await votingProxy.getActiveTarget(),
-    target: votingMirrors[0], // Required default
-    changeOrigin: true,
-    pathRewrite: { '^/api/voting': '' },
-    onError: (err, req, res) => {
-        console.error('[Failover] Voting Proxy Error:', err.message);
-        res.status(502).json({ error: 'All voting mirrors are currently unavailable.' });
+app.use('/api/voting', createProxyMiddleware({
+  router: () => getHealthyTarget(votingMirrors, 'voting'),
+  target: votingMirrors[0],
+  changeOrigin: true,
+  pathRewrite: { '^/api/voting': '' },
+  on: {
+    error: (err, req, res) => {
+      console.error('[Failover] Voting Proxy Error:', err.message);
+      res.status(502).json({ error: 'All voting mirrors are currently unavailable.' });
     }
+  }
 }));
 
 app.listen(port, () => {
-    console.log(`🚀 Multi-Mirror API Gateway running on port ${port}`);
-    console.log(`[Config] Verification Mirrors: ${verifMirrors.join(' | ')}`);
-    console.log(`[Config] Voting Mirrors: ${votingMirrors.join(' | ')}`);
+  console.log(`🚀 Multi-Mirror API Gateway running on port ${port}`);
 });
